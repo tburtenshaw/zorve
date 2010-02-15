@@ -43,7 +43,7 @@ HWND InfoWindowCreate(HWND hwndMDIClient, HINSTANCE hInst)
 	MDICREATESTRUCT mcs;
 
 	mcs.szClass = "InfoWndClass";      // window class name
-	mcs.szTitle = "Recording Information";             // window title
+	mcs.szTitle = "File Information";             // window title
 	mcs.hOwner  = hInst;            // owner
 	mcs.x       = 500;
 	mcs.y       = 0;
