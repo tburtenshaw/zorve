@@ -10,7 +10,7 @@
 
 /*<---------------------------------------------------------------------->*/
 HINSTANCE hInstProgram;		// Instance handle
-HWND hwndMain			//Main window handle
+HWND hwndMain;			//Main window handle
 HWND hwndMDIClient;		//Mdi client window handle
 HWND hwndToolBar;
 HWND  hWndStatusbar;
@@ -157,44 +157,6 @@ HWND CreatezorveWndClassWnd(void)
 		NULL,
 		hInstProgram,
 		NULL);
-}
-
-
-HWND MDICmdFileNew(char *title)
-{
-	HWND  hwndChild;
-	char  rgch[150];
-	static int cUntitled;
-	MDICREATESTRUCT mcs;
-
-	if (title == NULL)
-		wsprintf(rgch,"Untitled%d", cUntitled++);
-	else {
-		strncpy(rgch,title,149);
-		rgch[149] = 0;
-	}
-
-	// Create the MDI child window
-
-        mcs.szClass = "MdiChildWndClass";      // window class name
-        mcs.szTitle = rgch;             // window title
-        mcs.hOwner  = hInstProgram;            // owner
-        mcs.x       = CW_USEDEFAULT;    // x position
-        mcs.y       = CW_USEDEFAULT;    // y position
-        mcs.cx      = CW_USEDEFAULT;    // width
-        mcs.cy      = CW_USEDEFAULT;    // height
-        mcs.style   = 0;                // window style
-        mcs.lParam  = 0;                // lparam
-
-        hwndChild = (HWND) SendMessage(hwndMDIClient,
-                                       WM_MDICREATE,
-                                       0,
-                                       (LPARAM)(LPMDICREATESTRUCT) &mcs);
-
-	if (hwndChild != NULL)
-		ShowWindow(hwndChild, SW_SHOW);
-
-	return hwndChild;
 }
 
 BOOL _stdcall AboutDlg(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
