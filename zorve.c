@@ -1,7 +1,8 @@
 #include <windows.h>
 #include <windowsx.h>
 #include <commctrl.h>
-#include <string.h>
+#include <stdio.h>
+#include "zorve.h"
 #include "zorveres.h"
 #include "list.h"	//This contains the code that handles the file list
 #include "info.h"	//Handles the 4096 byte file
@@ -178,7 +179,14 @@ BOOL _stdcall AboutDlg(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 
 void MainWndProc_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
-{	char buffer[MAX_PATH];
+{
+	DIRECTORY_INFO *lpDirectoryInfo;
+
+	char openfilename[MAX_PATH];
+	char *p;
+
+	int result;
+
 
 	switch(id) {
 		case IDM_ABOUT:
@@ -187,8 +195,19 @@ void MainWndProc_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
 			break;
 
 		case IDM_OPEN:
-			GetFileName(buffer,sizeof(buffer));
-			hwndInfo = InfoWindowCreateOrShow(hwndInfo, hwndMDIClient, hInstProgram);
+			result = GetFileName(openfilename,sizeof(openfilename));
+
+			if (result)	{
+				hwndInfo = InfoWindowCreateOrShow(hwndInfo, hwndMDIClient, hInstProgram);
+				//change folder
+				lpDirectoryInfo=(DIRECTORY_INFO *)GetWindowLong(hwndList, GWL_USERDATA);
+				p=strrchr(openfilename,92);
+				if (p)	{
+					*p=0;
+					SetListDirectory(lpDirectoryInfo, openfilename);
+					*p=92;
+				}
+			}
 			break;
 		case IDM_WINDOWTILE:
 			SendMessage(hwndMDIClient,WM_MDITILE,0,0);
@@ -379,4 +398,76 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 			}
 	}
 	return msg.wParam;
+}
+
+
+void UnixTimeToFileTime(long unixtime, LPFILETIME pft)
+{
+	// Note that LONGLONG is a 64-bit value
+	LONGLONG ll;
+
+	ll = Int32x32To64(unixtime, 10000000) + 116444736000000000;
+	pft->dwLowDateTime = (DWORD)ll;
+	pft->dwHighDateTime = ll >> 32;
+}
+
+void BytesDisplayNice(long bytes, char *formatString, int thresholdratio, char *outputString)
+{
+	float sizetempfloat;
+	char sizeunits[6];
+
+	sizetempfloat=(float)bytes;
+
+	if (bytes>(1073741824*thresholdratio))	{
+		sizetempfloat=sizetempfloat/1073741824;
+		sizeunits[0]='G'; 			sizeunits[1]='B';
+		sizeunits[2]=0;
+	}
+	else if (bytes>1048576*thresholdratio)	{
+		sizetempfloat=sizetempfloat/1048576;
+		sizeunits[0]='M'; 			sizeunits[1]='B';
+		sizeunits[2]=0;
+	}
+	else if (bytes>1024*thresholdratio)	{
+		sizetempfloat=sizetempfloat/1024;
+		sizeunits[0]='K'; 			sizeunits[1]='B';
+		sizeunits[2]=0;
+	}
+	else	{
+		sizeunits[0]='b'; 			sizeunits[1]='y';
+		sizeunits[2]='t'; 			sizeunits[3]='e';
+		sizeunits[4]='s'; 			sizeunits[5]=0;
+	}
+
+	sprintf(outputString, formatString, sizetempfloat, sizeunits);
+
+	return;
+}
+
+void DurationShortFormatDHMS(long duration, char *outputString)
+{
+	int seconds=0;
+	int minutes=0;
+	int hours=0;
+	int days=0;
+
+	seconds=duration%60;
+
+	if (duration>=60)
+		minutes=(duration/60)%60;
+	if (duration>=36000)
+		hours=(duration/3600)%24;
+	if (duration>=86400)
+		days=(duration/86400);
+
+	outputString[0]=0;
+	if (duration>=86400)
+		sprintf(outputString, "%id ", days);
+	if (duration>=36000)
+    	sprintf(outputString, "%s%ih ", outputString, hours);
+	if (duration>=60)
+		sprintf(outputString, "%s%im ", outputString, minutes);
+	sprintf(outputString, "%s%is", outputString, seconds);
+
+	return;
 }
