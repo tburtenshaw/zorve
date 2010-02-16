@@ -16,7 +16,7 @@ struct sDirectoryInfo
 struct sDirectoryList
 {
 	char filename[MAX_PATH];	//includes path
-	char *shortfilename;		//path is cropped off
+	char shortfilename[17];		//path is cropped off, max 16 chars
 
 	char recordingname[120];	//only 120 can be squeezed in file, observed 40 without crashing machine
 	long unixtime;				//time&date of recording, obviously breaks at year 2038.
@@ -38,3 +38,7 @@ int PaintListWindow(HWND hwnd);
 int SetListDirectory(DIRECTORY_INFO *lpDirectoryInfo, char *directorypath);
 int UpdateDirectoryList(DIRECTORY_INFO *lpDirectoryInfo);
 int CheckAndAddFileToList(DIRECTORY_INFO *lpDirectoryInfo, WIN32_FIND_DATA *fileToAdd);
+
+//Linked list functions
+DIRECTORY_LIST* AddEntryCopyToList(DIRECTORY_INFO *lpDirectory, DIRECTORY_LIST *dirToAdd);
+void	DeleteDirectoryList(DIRECTORY_INFO *lpDirectoryInfo);
