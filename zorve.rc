@@ -8,6 +8,8 @@ IDI_LIST ICON "list.ico"
 IDI_MPEGTS ICON "mpegts.ico"
 IDI_NAV ICON "nav.ico"
 
+ID_BITMAP_FOLDERPIC BITMAP "folderpicture.bmp"
+
 
 IDMAINMENU MENU DISCARDABLE
 BEGIN

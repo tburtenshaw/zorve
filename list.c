@@ -4,10 +4,11 @@
 #include "list.h"
 
 //This registers the Window Class for the list files
-int ListWindowRegisterWndClass(HINSTANCE hInst)
+int ListWindowRegisterWndClasses(HINSTANCE hInst)
 {
 	WNDCLASS wc;
 
+	//First make the main list window class, this will contain two main children (for folder and files)
 	//Wipe the wndclass for editing.
 	memset(&wc,0,sizeof(WNDCLASS));
 
@@ -18,12 +19,45 @@ int ListWindowRegisterWndClass(HINSTANCE hInst)
 	wc.hInstance     = hInst;                      // Owner of this class
 	wc.hIcon         = LoadIcon(hInst, MAKEINTRESOURCE(IDI_LIST));
 	wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
-	wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1); // Default color
+	wc.hbrBackground = NULL;		//we draw the background, otherwise we get bad flicker
 	wc.lpszMenuName  = NULL;
 	wc.lpszClassName = "ListWndClass";
 
 	if (!RegisterClass((LPWNDCLASS)&wc))
 		return 0;
+
+
+	wc.style         = 0;
+	wc.lpfnWndProc   = (WNDPROC)ListChildFolderProc;
+	wc.cbClsExtra    = 0;
+	wc.cbWndExtra    = 20;
+	wc.hInstance     = hInst;                      // Owner of this class
+	wc.hIcon         = NULL;
+	wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
+	wc.hbrBackground = NULL;		//we draw the background, otherwise we get bad flicker
+	wc.lpszMenuName  = NULL;
+	wc.lpszClassName = "ListChildFolderSelector";
+
+	if (!RegisterClass((LPWNDCLASS)&wc))
+		return 0;
+
+	wc.style         = 0;
+	wc.lpfnWndProc   = (WNDPROC)ListChildFileProc;
+	wc.cbClsExtra    = 0;
+	wc.cbWndExtra    = 20;
+	wc.hInstance     = hInst;                      // Owner of this class
+	wc.hIcon         = NULL;
+	wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
+	wc.hbrBackground = NULL;		//we draw the background, otherwise we get bad flicker
+	wc.lpszMenuName  = NULL;
+	wc.lpszClassName = "ListChildFileSelector";
+
+	if (!RegisterClass((LPWNDCLASS)&wc))
+		return 0;
+
+
+
+
 	return 1;
 }
 
@@ -54,30 +88,150 @@ HWND ListWindowCreate(HWND hwndMDIClient, HINSTANCE hInst)
 //This is the main handler for this window
 LRESULT CALLBACK ChildWndListProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam)
 {
+	LISTWINDOW_INFO *lpListWindowInfo;
 	DIRECTORY_INFO *lpDirectoryInfo;
+	HINSTANCE	hInst;
+
+	HWND  childWndButton;
+	HBITMAP folderIcon;
+	LRESULT lResult;
+
+	RECT clientRect;
 
 	switch(msg) {
-		case WM_CREATE:		//When we create the file we do certain things
-			lpDirectoryInfo=malloc(sizeof(DIRECTORY_INFO));	//make the structure that holds browsed directory
-			SetWindowLong(hwnd, GWL_USERDATA, (long)lpDirectoryInfo); //set the custom long of the window to remember it
-			memset(lpDirectoryInfo, 0, sizeof(DIRECTORY_INFO));	//make sure everything set to zero
+		case WM_CREATE:		//When we create the list we do certain things
+			hInst=((LPCREATESTRUCT)lparam)->hInstance;
 
+			lpListWindowInfo=malloc(sizeof(LISTWINDOW_INFO));	//make the structure that holds child windows and folderlist
+			SetWindowLong(hwnd, GWL_USERDATA, (long)lpListWindowInfo); //set the custom long of the window to remember it
+			memset(lpListWindowInfo, 0, sizeof(LISTWINDOW_INFO));	//make sure everything set to zero
+
+			lpDirectoryInfo=&lpListWindowInfo->directoryInfo;	//the directory pointer is set to the location in the windowinfostruct
 			//SetListDirectory(lpDirectoryInfo, NULL);	//Set the directory to the default, this will call another function that fills the linked list
 			SetListDirectory(lpDirectoryInfo, "L:\\Record_Video\\");	//Set the directory to the default, this will call another function that fills the linked list
 
+			lpListWindowInfo->heightFolderSelector=50;
+
+			lpListWindowInfo->hwndFolder = CreateWindow("ListChildFolderSelector", "folderselect", WS_CHILD|WS_VISIBLE, 0,0,50,lpListWindowInfo->heightFolderSelector,hwnd, NULL, hInst, NULL);
+			lpListWindowInfo->hwndFiles = CreateWindow("ListChildFileSelector", "fileselect", WS_CHILD|WS_VISIBLE, 0,lpListWindowInfo->heightFolderSelector,50,150,hwnd, NULL, hInst, NULL);
 			break;
+
+		case WM_SIZE:
+			lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
+
+			GetClientRect(hwnd, &clientRect);
+
+			MoveWindow(lpListWindowInfo->hwndFolder, 0, 0, clientRect.right-clientRect.left,lpListWindowInfo->heightFolderSelector, TRUE);
+			MoveWindow(lpListWindowInfo->hwndFiles,
+							0, lpListWindowInfo->heightFolderSelector,
+							clientRect.right-clientRect.left, clientRect.bottom-clientRect.top-lpListWindowInfo->heightFolderSelector, TRUE);
+
+			break;
+
+//		case WM_PAINT:
+//			PaintListWindow(hwnd);
+			break;
+	}
+	return DefMDIChildProc(hwnd, msg, wparam, lparam);
+}
+
+LRESULT CALLBACK ListChildFolderProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam)
+{
+	LISTWINDOW_INFO *lpListWindowInfo;
+
+	switch(msg) {
 		case WM_PAINT:
-			PaintListWindow(hwnd);
+			lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);
+			PaintListFolderWindow(hwnd, lpListWindowInfo);
+			break;
+		case WM_ERASEBKGND:
+			return 1;
+			break;
+	}
+	return DefMDIChildProc(hwnd, msg, wparam, lparam);
+}
+
+LRESULT CALLBACK ListChildFileProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam)
+{
+	LISTWINDOW_INFO *lpListWindowInfo;
+
+	switch(msg) {
+		case WM_PAINT:
+			lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);
+			PaintListFileWindow(hwnd, lpListWindowInfo);
 			break;
 	}
 	return DefMDIChildProc(hwnd, msg, wparam, lparam);
 }
 
 
-int PaintListWindow(HWND hwnd)
+int PaintListFolderWindow(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo)
+{
+	DIRECTORY_INFO *lpDirectoryInfo;
+	char textbuffer[255];
+
+	HDC hdc;
+	PAINTSTRUCT psPaint;
+
+	RECT clientRect;
+	RECT textRect;
+
+	HFONT hLargeFont;
+	HFONT hSmallFont;
+
+	lpDirectoryInfo=&lpListWindowInfo->directoryInfo;	//get the pointer to the directory info block
+
+	hdc = BeginPaint(hwnd, &psPaint);
+	GetClientRect(hwnd, &clientRect);
+
+	SetBkColor(hdc, RGB_ZINNY_DARKBLUE);
+	SetTextColor(hdc, RGB(255, 255, 255));
+	hLargeFont = CreateFont(
+				MulDiv(14, GetDeviceCaps(hdc, LOGPIXELSY), 72),
+				0,0,0,FW_BOLD,
+				FALSE,FALSE,FALSE,
+				DEFAULT_CHARSET,OUT_OUTLINE_PRECIS,
+                CLIP_DEFAULT_PRECIS,ANTIALIASED_QUALITY, VARIABLE_PITCH|FF_SWISS,"Arial");
+
+	hSmallFont = CreateFont(
+				MulDiv(8, GetDeviceCaps(hdc, LOGPIXELSY), 72),
+				0,0,0,FW_BOLD,
+				FALSE,FALSE,FALSE,
+				DEFAULT_CHARSET,OUT_OUTLINE_PRECIS,
+                CLIP_DEFAULT_PRECIS,ANTIALIASED_QUALITY, VARIABLE_PITCH|FF_SWISS,"Arial");
+
+	SelectObject(hdc,hLargeFont);
+
+
+	textRect.top=0; textRect.bottom=30;
+	textRect.left=0; textRect.right=clientRect.right;
+	ExtTextOut(hdc, 5,5, ETO_OPAQUE, &textRect, lpDirectoryInfo->directoryName, strlen(lpDirectoryInfo->directoryName), NULL);
+
+	SelectObject(hdc,hSmallFont);
+	sprintf(textbuffer, "(%i file%s found)", lpDirectoryInfo->numberOfFiles, (lpDirectoryInfo->numberOfFiles==1)?"":"s");
+	textRect.top=30; textRect.bottom=clientRect.bottom;
+	textRect.left=0; textRect.right=clientRect.right;
+	ExtTextOut(hdc, 5,30, ETO_OPAQUE, &textRect, textbuffer, strlen(textbuffer), NULL);
+
+	DeleteObject(hSmallFont);
+	DeleteObject(hLargeFont);
+
+	EndPaint (hwnd, &psPaint);
+
+	return 0;
+}
+
+
+int PaintListFileWindow(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo)
 {
 	DIRECTORY_INFO *lpDirectoryInfo;
 	DIRECTORY_LIST *llist;
+
+	RECT clientRect;
+	RECT textRect;
+
+	HFONT hLargeFont;
+	HFONT hSmallFont;
 
 	HDC hdc;
 	PAINTSTRUCT psPaint;
@@ -91,20 +245,22 @@ int PaintListWindow(HWND hwnd)
 
 	int y=0;
 
-	lpDirectoryInfo=(DIRECTORY_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
+	lpDirectoryInfo=&lpListWindowInfo->directoryInfo;
 
 	hdc = BeginPaint(hwnd, &psPaint);
-	ExtTextOut(hdc, 0,y, ETO_OPAQUE, NULL, lpDirectoryInfo->directoryName, strlen(lpDirectoryInfo->directoryName), NULL);
-
-	y=40;
+	GetClientRect(hwnd, &clientRect);
 
 	llist=lpDirectoryInfo->first;
-	while (llist)	{
-		ExtTextOut(hdc, 0,y, ETO_OPAQUE, NULL, llist->shortfilename, strlen(llist->shortfilename), NULL);
-		y+=20;
+	while ((llist)&&(y<clientRect.bottom))	{
+		SetBkColor(hdc, RGB_ZINNY_MIDPURPLE);
 
-		ExtTextOut(hdc, 0,y, ETO_OPAQUE, NULL, llist->recordingname, strlen(llist->recordingname), NULL);
-		y+=20;
+		textRect.top=y;textRect.bottom=y+20;
+		textRect.left=clientRect.left; textRect.right=clientRect.right;
+		ExtTextOut(hdc, 5,textRect.top, ETO_OPAQUE, &textRect, llist->shortfilename, strlen(llist->shortfilename), NULL);
+
+		textRect.top=y+20;textRect.bottom=y+40;
+		textRect.left=clientRect.left; textRect.right=clientRect.right;
+		ExtTextOut(hdc, 5,textRect.top, ETO_OPAQUE, &textRect, llist->recordingname, strlen(llist->recordingname), NULL);
 
 
 		//This helps to get a pretty date
@@ -115,11 +271,21 @@ int PaintListWindow(HWND hwnd)
 		DurationShortFormatDHMS(llist->duration, durationString);
 
 		sprintf(textoutbuffer, "%02d/%02d/%04d, Size:%s , %s", systemtime.wDay,systemtime.wMonth,systemtime.wYear , filesizeString, durationString);
-		ExtTextOut(hdc, 0,y, ETO_OPAQUE, NULL, textoutbuffer, strlen(textoutbuffer), NULL);
-		y+=20;
 
+		textRect.top=y+40;textRect.bottom=y+60;
+		ExtTextOut(hdc, 5,textRect.top, ETO_OPAQUE, &textRect, textoutbuffer, strlen(textoutbuffer), NULL);
+
+		SetBkColor(hdc, RGB_ZINNY_HIGHPURPLE);
+		textRect.top=y+60;textRect.bottom=y+62;
+		ExtTextOut(hdc, 0,0, ETO_OPAQUE, &textRect, "", 0, NULL);	//this is the separator
+
+		y+=62;
 		llist=llist->next;
 	}
+
+	SetBkColor(hdc, RGB_ZINNY_MIDPURPLE);
+	textRect.top=y; textRect.bottom=clientRect.bottom;
+	ExtTextOut(hdc, 0,0, ETO_OPAQUE, &textRect, "", 0, NULL);	//this is the separator
 
 	//SHBrowseForFolder
 

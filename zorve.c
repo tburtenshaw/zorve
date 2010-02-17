@@ -142,7 +142,7 @@ static BOOL InitApplication(void)
 		return 0;
 
 	InfoWindowRegisterWndClass(hInstProgram);
-	ListWindowRegisterWndClass(hInstProgram);
+	ListWindowRegisterWndClasses(hInstProgram);
 	MpegWindowRegisterWndClass(hInstProgram);
 	NavWindowRegisterWndClass(hInstProgram);
 
@@ -180,6 +180,7 @@ BOOL _stdcall AboutDlg(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 void MainWndProc_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
 {
+	LISTWINDOW_INFO *lpListWindowInfo;
 	DIRECTORY_INFO *lpDirectoryInfo;
 
 	char openfilename[MAX_PATH];
@@ -200,13 +201,17 @@ void MainWndProc_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
 			if (result)	{
 				hwndInfo = InfoWindowCreateOrShow(hwndInfo, hwndMDIClient, hInstProgram);
 				//change folder
-				lpDirectoryInfo=(DIRECTORY_INFO *)GetWindowLong(hwndList, GWL_USERDATA);
+				lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(hwndList, GWL_USERDATA);
+				lpDirectoryInfo=&lpListWindowInfo->directoryInfo;
+
 				p=strrchr(openfilename,92);
-				if (p)	{
+				if (p)	{		//this temporarily hides the slash, truncating the file to a path- need to look for both backslash and slash though
 					*p=0;
 					SetListDirectory(lpDirectoryInfo, openfilename);
 					*p=92;
 				}
+				InvalidateRect(lpListWindowInfo->hwndFolder, NULL, FALSE);
+				InvalidateRect(lpListWindowInfo->hwndFiles, NULL, FALSE);
 			}
 			break;
 		case IDM_WINDOWTILE:
