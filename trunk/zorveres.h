@@ -49,3 +49,7 @@
 #define IDM_WINDOWCHILD	3010
 #define ID_TOOLBAR	5000
 #define IDD_ABOUT	100
+
+// Pictures
+
+#define ID_BITMAP_FOLDERPIC 900

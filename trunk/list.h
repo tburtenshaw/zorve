@@ -3,6 +3,7 @@
 
 typedef struct sDirectoryList DIRECTORY_LIST;
 typedef struct sDirectoryInfo DIRECTORY_INFO;
+typedef struct sListWindowInfo LISTWINDOW_INFO;
 
 struct sDirectoryInfo
 {
@@ -31,10 +32,35 @@ struct sDirectoryList
 	DIRECTORY_LIST *prev;		//Prev in linked list (or NULL if list empty)
 };
 
-int ListWindowRegisterWndClass(HINSTANCE hInst);	//Registers the class "ListWndClass"
+
+//This structure is malloc'd and the pointer is used as the windowlong
+//It contains:
+// - the info about the loaded directory
+// - child hwnds
+// - vars used for keeping tract of things - e.g. selected item, colours
+struct sListWindowInfo
+{
+	DIRECTORY_INFO directoryInfo;
+
+	//The HWND children of out main list display window
+	//Separated into the folder display selector
+	//and the scrollable and selectable list of files.
+	HWND hwndFolder;
+	HWND hwndFiles;
+
+	int heightFolderSelector;	//The height of the folder selector
+};
+
+
+int ListWindowRegisterWndClasses(HINSTANCE hInst);	//Registers the class "ListWndClass" and its children
 HWND ListWindowCreate(HWND hwndMDIClient, HINSTANCE hInst);
 LRESULT CALLBACK ChildWndListProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam);
-int PaintListWindow(HWND hwnd);
+LRESULT CALLBACK ListChildFolderProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam);
+LRESULT CALLBACK ListChildFileProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam);
+
+
+int PaintListFileWindow(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo);
+int PaintListFolderWindow(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo);
 int SetListDirectory(DIRECTORY_INFO *lpDirectoryInfo, char *directorypath);
 int UpdateDirectoryList(DIRECTORY_INFO *lpDirectoryInfo);
 int CheckAndAddFileToList(DIRECTORY_INFO *lpDirectoryInfo, WIN32_FIND_DATA *fileToAdd);
