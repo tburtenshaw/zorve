@@ -200,7 +200,10 @@ void MainWndProc_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
 
 			if (result)	{
 				hwndInfo = InfoWindowCreateOrShow(hwndInfo, hwndMDIClient, hInstProgram);
-				//change folder
+				InfoWindowLoadFile(hwndInfo, &openfilename[0]);
+
+
+				//Change folder
 				lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(hwndList, GWL_USERDATA);
 				lpDirectoryInfo=&lpListWindowInfo->directoryInfo;
 
