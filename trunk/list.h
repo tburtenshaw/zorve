@@ -12,6 +12,8 @@ struct sDirectoryInfo
 	long numberOfFiles;
 	DIRECTORY_LIST *first;
 	DIRECTORY_LIST *last;
+
+	LISTWINDOW_INFO	 *parentListWindowInfo;
 };
 
 struct sDirectoryList
@@ -30,6 +32,8 @@ struct sDirectoryList
 	int index;					//The number of linked list this is.
 	DIRECTORY_LIST *next;		//Next in linked list or NULL if at end of list
 	DIRECTORY_LIST *prev;		//Prev in linked list (or NULL if list empty)
+
+	RECT boundingRect;
 };
 
 
@@ -49,6 +53,14 @@ struct sListWindowInfo
 	HWND hwndFiles;
 
 	int heightFolderSelector;	//The height of the folder selector
+
+	int firstLine;				//First line displayed
+
+	int	selectedLine;
+	int caretedLine;
+
+	RECT oldBoundingRect;
+
 };
 
 
