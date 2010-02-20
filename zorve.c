@@ -151,7 +151,7 @@ static BOOL InitApplication(void)
 
 HWND CreatezorveWndClassWnd(void)
 {
-	return CreateWindow("zorveWndClass","zorve",
+	return CreateWindow("zorveWndClass","Zorve",
 		WS_MINIMIZEBOX|WS_VISIBLE|WS_CLIPSIBLINGS|WS_CLIPCHILDREN|WS_MAXIMIZEBOX|WS_CAPTION|WS_BORDER|WS_SYSMENU|WS_THICKFRAME,
 		CW_USEDEFAULT,0,CW_USEDEFAULT,0,
 		NULL,
@@ -328,25 +328,25 @@ HWND CreateAToolBar(HWND hwndParent)
 	// Button "Paste"
 	tbb[0].iBitmap = STD_PASTE;
 	tbb[0].idCommand = IDM_EDITPASTE;
-	tbb[0].fsState = TBSTATE_ENABLED;
+	tbb[0].fsState = 0;//TBSTATE_ENABLED;
 	tbb[0].fsStyle = TBSTYLE_BUTTON;
 
 	// Button "Properties"
 	tbb[1].iBitmap = STD_PROPERTIES;
 	tbb[1].idCommand = IDM_PROPERTIES;
-	tbb[1].fsState = TBSTATE_ENABLED;
+	tbb[1].fsState = 0;//TBSTATE_ENABLED;
 	tbb[1].fsStyle = TBSTYLE_BUTTON;
 
 	// Button "Undo"
 	tbb[2].iBitmap = STD_UNDO;
 	tbb[2].idCommand = IDM_EDITUNDO;
-	tbb[2].fsState = TBSTATE_ENABLED;
+	tbb[2].fsState = 0;//TBSTATE_ENABLED;
 	tbb[2].fsStyle = TBSTYLE_BUTTON;
 
 	// Button "Redo"
 	tbb[3].iBitmap = STD_REDOW;
 	tbb[3].idCommand = IDM_EDITREDO;
-	tbb[3].fsState = TBSTATE_ENABLED;
+	tbb[3].fsState = 0;//TBSTATE_ENABLED;
 	tbb[3].fsStyle = TBSTYLE_BUTTON;
 
 	// Button "Open"
@@ -359,19 +359,19 @@ HWND CreateAToolBar(HWND hwndParent)
 	// Button "Delete"
 	tbb[5].iBitmap = STD_DELETE;
 	tbb[5].idCommand = IDM_EDITDELETE;
-	tbb[5].fsState = TBSTATE_ENABLED;
+	tbb[5].fsState = 0;//TBSTATE_ENABLED;
 	tbb[5].fsStyle = TBSTYLE_BUTTON;
 
 	// Button "Cut"
 	tbb[6].iBitmap = STD_CUT;
 	tbb[6].idCommand = IDM_EDITCUT;
-	tbb[6].fsState = TBSTATE_ENABLED;
+	tbb[6].fsState = 0;//TBSTATE_ENABLED;
 	tbb[6].fsStyle = TBSTYLE_BUTTON;
 
 	// Button "Copy"
 	tbb[7].iBitmap = STD_COPY;
 	tbb[7].idCommand = IDM_EDITCOPY;
-	tbb[7].fsState = TBSTATE_ENABLED;
+	tbb[7].fsState = 0;//TBSTATE_ENABLED;
 	tbb[7].fsStyle = TBSTYLE_BUTTON;
 
 	SendMessage(hwndTB,TB_ADDBUTTONS,8,(LPARAM)&tbb);
@@ -476,6 +476,19 @@ void DurationShortFormatDHMS(long duration, char *outputString)
 	if (duration>=60)
 		sprintf(outputString, "%s%im ", outputString, minutes);
 	sprintf(outputString, "%s%is", outputString, seconds);
+
+	return;
+}
+
+HWND ZorveGetHwndInfo()
+{
+
+	return hwndInfo;
+}
+
+void ZorveSetHwndInfo(HWND hwnd)
+{
+	hwndInfo=hwnd;
 
 	return;
 }

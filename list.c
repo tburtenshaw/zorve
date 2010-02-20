@@ -2,6 +2,7 @@
 #include "zorve.h"
 #include "zorveres.h"
 #include "list.h"
+#include "info.h"
 
 //This registers the Window Class for the list files
 int ListWindowRegisterWndClasses(HINSTANCE hInst)
@@ -56,8 +57,6 @@ int ListWindowRegisterWndClasses(HINSTANCE hInst)
 		return 0;
 
 
-
-
 	return 1;
 }
 
@@ -66,6 +65,8 @@ HWND ListWindowCreate(HWND hwndMDIClient, HINSTANCE hInst)
 {
 	HWND  hwndChild;
 	MDICREATESTRUCT mcs;
+
+	LISTWINDOW_INFO *lpListWindowInfo;
 
 	mcs.szClass = "ListWndClass";      // window class name
 	mcs.szTitle = "Recorded List";             // window title
@@ -99,21 +100,25 @@ LRESULT CALLBACK ChildWndListProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 	RECT clientRect;
 
 	switch(msg) {
-		case WM_CREATE:		//When we create the list we do certain things (having this in a message may create race condition - need to fix urgently
+		case WM_CREATE:
 			hInst=((LPCREATESTRUCT)lparam)->hInstance;
 
+			//Still have my doubts about malloc'ing in a message - will need to check before using from other functions
 			lpListWindowInfo=malloc(sizeof(LISTWINDOW_INFO));	//make the structure that holds child windows and folderlist
 			SetWindowLong(hwnd, GWL_USERDATA, (long)lpListWindowInfo); //set the custom long of the window to remember it
 			memset(lpListWindowInfo, 0, sizeof(LISTWINDOW_INFO));	//make sure everything set to zero
 
+			lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
+
 			lpDirectoryInfo=&lpListWindowInfo->directoryInfo;	//the directory pointer is set to the location in the windowinfostruct
+			lpDirectoryInfo->parentListWindowInfo = lpListWindowInfo;
 			//SetListDirectory(lpDirectoryInfo, NULL);	//Set the directory to the default, this will call another function that fills the linked list
 			SetListDirectory(lpDirectoryInfo, "L:\\Record_Video\\");	//Set the directory to the default, this will call another function that fills the linked list
 
 			lpListWindowInfo->heightFolderSelector=50;
 
 			lpListWindowInfo->hwndFolder = CreateWindow("ListChildFolderSelector", "folderselect", WS_CHILD|WS_VISIBLE, 0,0,50,lpListWindowInfo->heightFolderSelector,hwnd, NULL, hInst, NULL);
-			lpListWindowInfo->hwndFiles = CreateWindow("ListChildFileSelector", "fileselect", WS_CHILD|WS_VISIBLE, 0,lpListWindowInfo->heightFolderSelector,50,150,hwnd, NULL, hInst, NULL);
+			lpListWindowInfo->hwndFiles = CreateWindow("ListChildFileSelector", "fileselect", WS_CHILD|WS_VISIBLE|WS_VSCROLL, 0,lpListWindowInfo->heightFolderSelector,50,150,hwnd, NULL, hInst, NULL);
 			break;
 
 		case WM_SIZE:
@@ -128,9 +133,6 @@ LRESULT CALLBACK ChildWndListProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 
 			break;
 
-//		case WM_PAINT:
-//			PaintListWindow(hwnd);
-			break;
 	}
 	return DefMDIChildProc(hwnd, msg, wparam, lparam);
 }
@@ -154,6 +156,14 @@ LRESULT CALLBACK ListChildFolderProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lpa
 LRESULT CALLBACK ListChildFileProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam)
 {
 	LISTWINDOW_INFO *lpListWindowInfo;
+	DIRECTORY_INFO *lpDirectoryInfo;
+	DIRECTORY_LIST *llist;
+
+	HWND hwndInfo;
+
+	POINT point;
+	int xPos;
+	int yPos;
 
 	switch(msg) {
 		case WM_PAINT:
@@ -165,6 +175,52 @@ LRESULT CALLBACK ListChildFileProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lpara
 			break;
 		case WM_SIZE:
 			InvalidateRect(hwnd, NULL, FALSE);
+			break;
+
+		case WM_VSCROLL:
+			lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);
+			if (wparam==SB_LINEDOWN)	{
+				lpListWindowInfo->firstLine++;
+				InvalidateRect(hwnd, NULL, FALSE);
+			}
+
+			if (wparam==SB_LINEUP)	{
+				lpListWindowInfo->firstLine--;
+				if (lpListWindowInfo->firstLine<0) lpListWindowInfo->firstLine=0;
+				InvalidateRect(hwnd, NULL, FALSE);
+			}
+
+			break;
+		case WM_LBUTTONDOWN:
+		//case WM_LBUTTONDBLCLK:
+			//xPos = GET_X_LPARAM(lparam);
+			//yPos = GET_Y_LPARAM(lparam);
+			point.x=GET_X_LPARAM(lparam);
+			point.y=GET_Y_LPARAM(lparam);
+			lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);
+			lpDirectoryInfo=&lpListWindowInfo->directoryInfo;
+
+			llist=lpDirectoryInfo->first;
+			while (llist)	{
+				if (PtInRect(&llist->boundingRect, point))	{
+					hwndInfo = (HWND)ZorveGetHwndInfo();
+					hwndInfo = InfoWindowCreateOrShow(hwndInfo, GetParent(GetParent(hwnd)), (HINSTANCE)GetWindowLong(hwnd, GWL_HINSTANCE));
+					ZorveSetHwndInfo(hwndInfo);
+					lpDirectoryInfo->parentListWindowInfo->selectedLine=llist->index;
+					InvalidateRect(hwnd, &lpDirectoryInfo->parentListWindowInfo->oldBoundingRect, FALSE);
+					InvalidateRect(hwnd, &llist->boundingRect, FALSE);
+
+
+					InfoWindowLoadFile(hwndInfo, llist->filename);
+				}
+
+					//MessageBox(0,llist->filename,"3",0);
+
+				llist=llist->next;
+			}
+
+
+
 			break;
 
 	}
@@ -205,7 +261,7 @@ int PaintListFolderWindow(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo)
 				0,0,0,FW_BOLD,
 				FALSE,FALSE,FALSE,
 				DEFAULT_CHARSET,OUT_OUTLINE_PRECIS,
-                CLIP_DEFAULT_PRECIS,ANTIALIASED_QUALITY, VARIABLE_PITCH|FF_SWISS,"Arial");
+                CLIP_DEFAULT_PRECIS,NONANTIALIASED_QUALITY, VARIABLE_PITCH|FF_SWISS,"Arial");
 
 	SelectObject(hdc,hLargeFont);
 
@@ -240,6 +296,7 @@ int PaintListFileWindow(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo)
 	TEXTMETRIC textMetric;
 	HFONT hLargeFont;
 	HFONT hSmallFont;
+	SIZE sizeTextExtent;
 
 	int	heightLargeFont;
 	int heightSmallFont;
@@ -255,6 +312,8 @@ int PaintListFileWindow(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo)
 	FILETIME filetime;
 	SYSTEMTIME systemtime;
 
+	SCROLLINFO scrollInfo;
+	int numberFullLines;
 
 	int smallcolumnwidth=80;
 	int dividerlinewidth=2;
@@ -279,7 +338,7 @@ int PaintListFileWindow(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo)
 				0,0,0,FW_BOLD,
 				FALSE,FALSE,FALSE,
 				DEFAULT_CHARSET,OUT_OUTLINE_PRECIS,
-                CLIP_DEFAULT_PRECIS,ANTIALIASED_QUALITY, VARIABLE_PITCH|FF_SWISS,"Arial");
+                CLIP_DEFAULT_PRECIS,NONANTIALIASED_QUALITY, VARIABLE_PITCH|FF_SWISS,"Arial");
 
 
 	SelectObject(hdc,hLargeFont);
@@ -295,11 +354,30 @@ int PaintListFileWindow(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo)
 	else
 		heightLine=heightSmallFont;
 
+	GetTextExtentPoint32(hdc, "WW/WW/WW", 8, &sizeTextExtent);
+	smallcolumnwidth = sizeTextExtent.cx;
 
 
+	//Start going through linked list, and display all the files
 	llist=lpDirectoryInfo->first;
+
+	//Skip up until the first thing to display
+	while ((llist) && (llist->index<lpListWindowInfo->firstLine) )	{
+		if ((llist->index < lpListWindowInfo->firstLine))
+			llist->boundingRect.top=-1;llist->boundingRect.bottom=-1;
+			llist->boundingRect.left=-1;llist->boundingRect.right=-1;
+			llist=llist->next;
+	}
+
 	while ((llist)&&(y<clientRect.bottom))	{
-		SetBkColor(hdc, RGB_ZINNY_MIDPURPLE);
+
+		if (llist->index==lpListWindowInfo->selectedLine)	{
+			SetTextColor(hdc, RGB_ZINNY_WHITE);
+			SetBkColor(hdc, RGB_ZINNY_BRIGHTBLUE);
+		} else	{
+			SetTextColor(hdc, RGB_ZINNY_DARKBLUE);
+			SetBkColor(hdc, RGB_ZINNY_MIDPURPLE);
+		}
 
 
 		//Draw the Recording Name, then the filename (on the left)
@@ -307,7 +385,6 @@ int PaintListFileWindow(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo)
 		SelectObject(hdc,hLargeFont);
 
 		textRect.left=clientRect.left; textRect.right=clientRect.right-smallcolumnwidth;
-		//textRect.top=y+0;textRect.bottom=y+2*heightLine;
 		textRect.top=y+0;textRect.bottom=y+heightLargeFont;
 		ExtTextOut(hdc, 5,textRect.top, ETO_OPAQUE, &textRect, llist->recordingname, strlen(llist->recordingname), NULL);
 
@@ -329,13 +406,16 @@ int PaintListFileWindow(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo)
 		ExtTextOut(hdc, textRect.right-5,textRect.top, ETO_OPAQUE, &textRect, textoutbuffer, strlen(textoutbuffer), NULL);
 
 		textRect.top=y+1*heightLine;textRect.bottom=y+2*heightLine;
+		//24 hour time
 		sprintf(textoutbuffer, "%02d:%02d",systemtime.wHour,systemtime.wMinute);
+		//12 hour time
+		sprintf(textoutbuffer, "%d:%02d%s",systemtime.wHour==0?12:(systemtime.wHour>12?systemtime.wHour-12:systemtime.wHour),systemtime.wMinute, systemtime.wHour>=12?"p":"a");
+
 		ExtTextOut(hdc, textRect.right-5,textRect.top, ETO_OPAQUE, &textRect, textoutbuffer, strlen(textoutbuffer), NULL);
 
 
 		DurationShortFormatDHMS(llist->duration, durationString);
 	    sprintf(textoutbuffer, "%s", durationString);
-		sprintf(textoutbuffer, "Tr %i %i", heightLargeFont, heightSmallFont);
 		textRect.top=y+2*heightLine;textRect.bottom=y+3*heightLine;
 		ExtTextOut(hdc, textRect.right-5,textRect.top, ETO_OPAQUE, &textRect, textoutbuffer, strlen(textoutbuffer), NULL);
 
@@ -349,9 +429,30 @@ int PaintListFileWindow(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo)
 		textRect.top=y+3*heightLine;textRect.bottom=y+3*heightLine+dividerlinewidth;
 		ExtTextOut(hdc, 0,0, ETO_OPAQUE, &textRect, "", 0, NULL);	//this is the separator
 
+		llist->boundingRect.left=clientRect.left;
+		llist->boundingRect.right=clientRect.right;
+		llist->boundingRect.top=y;
+		llist->boundingRect.bottom=y+3*heightLine+dividerlinewidth;
+
+		if (llist->index==lpListWindowInfo->selectedLine)	{	//if this is selected, remember its bounding box
+			lpListWindowInfo->oldBoundingRect.left=llist->boundingRect.left;
+			lpListWindowInfo->oldBoundingRect.right=llist->boundingRect.right;
+			lpListWindowInfo->oldBoundingRect.top=llist->boundingRect.top;
+			lpListWindowInfo->oldBoundingRect.bottom=llist->boundingRect.bottom;
+		}
+
+
+
 		y+=3*heightLine+dividerlinewidth;
+
+		if (y<=clientRect.bottom)	//if this is true, then we have displayed a full line
+			numberFullLines=llist->index - lpListWindowInfo->firstLine;
+
 		llist=llist->next;
 	}
+
+	if (y<clientRect.bottom)
+		numberFullLines=lpDirectoryInfo->numberOfFiles;
 
 	SetBkColor(hdc, RGB_ZINNY_MIDPURPLE);
 	textRect.left=clientRect.left; textRect.right=clientRect.right;
@@ -362,8 +463,18 @@ int PaintListFileWindow(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo)
 
 	DeleteObject(hSmallFont);
 	DeleteObject(hLargeFont);
-
 	EndPaint (hwnd, &psPaint);
+
+	//Scrollbars
+	scrollInfo.cbSize = sizeof(SCROLLINFO);
+	scrollInfo.fMask = SIF_PAGE|SIF_POS|SIF_RANGE;
+	scrollInfo.nPage=numberFullLines;
+	scrollInfo.nMin=0;
+	scrollInfo.nMax=lpDirectoryInfo->numberOfFiles;
+	scrollInfo.nPos=lpListWindowInfo->firstLine;
+
+	SetScrollInfo(hwnd, SB_VERT, &scrollInfo, TRUE);
+
 	return 0;
 }
 
@@ -376,6 +487,8 @@ int SetListDirectory(DIRECTORY_INFO *lpDirectoryInfo, char *directorypath)
 
 	strcpy(lpDirectoryInfo->directoryFilter, "????Z*");
 	UpdateDirectoryList(lpDirectoryInfo);
+
+	lpDirectoryInfo->parentListWindowInfo->firstLine=0;
 	return 0;
 }
 

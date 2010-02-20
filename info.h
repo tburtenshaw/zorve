@@ -2,9 +2,22 @@
 #include <windowsx.h>
 
 typedef struct sInfoFileInformation INFOFILE_INFO;
+typedef struct sIFWI INFOFILEWINDOW_INFO;
+
+struct sIFWI
+{
+	HWND editHwndRecording;
+	HWND editHwndDescription;
+
+	HWND buttonHwndSaveAll;
+	HWND buttonHwndRevert;
+};
 
 struct sInfoFileInformation
 {
+	long magicLong;
+	int unknownWord;
+
 	char filename[MAX_PATH];
 
 	//These are identical to the list vars
@@ -33,7 +46,9 @@ struct sInfoFileInformation
 	int dup_decimalbyteHour;
 	int dup_decimalbyteMinute;
 
-
+	//I don't like doing this, but this contains hwnds etc.
+	//I'd prefer to have the file stuff as subset - but too lazy to fix
+	INFOFILEWINDOW_INFO windowInfo;
 };
 
 int InfoWindowRegisterWndClass(HINSTANCE hInst);
@@ -41,7 +56,10 @@ HWND InfoWindowCreateOrShow(HWND hwnd, HWND hwndChild, HINSTANCE hInst);
 HWND InfoWindowCreate(HWND hwndMDIClient, HINSTANCE hInst);
 int  InfoWindowLoadFile(HWND hwnd, char *filename);
 
+int SaveInfoChanges(HWND hwnd, INFOFILE_INFO *info);
 
+
+void PaintInfoWindow(HWND hwnd);
 
 
 
