@@ -5,12 +5,17 @@
 #define Int32x32To64(a, b) ((LONGLONG)((LONG)(a)) * (LONGLONG)((LONG)(b)))
 
 void UnixTimeToFileTime(long unixtime, LPFILETIME pft);
+void ModJulianTimeToFileTime(int juliantime, LPFILETIME pft);
 void BytesDisplayNice(long bytes, char *formatString, int thresholdratio, char *outputString);
 void DurationShortFormatDHMS(long duration, char *outputString);
+WORD swap_endian_word(WORD i);
+char * ReturnChannelNameFromPID(int pid);
 
+//These functions are used the subprograms to find out the location of each other
 HWND ZorveGetHwndInfo(void);
 void ZorveSetHwndInfo(HWND hwnd);
-
+HWND ZorveGetHwndList(void);
+void ZorveSetHwndList(HWND hwnd);
 
 #define RGB_ZINNY_DARKBLUE RGB(0x00, 0x00, 0x66)
 #define RGB_ZINNY_MIDPURPLE RGB(0xBE, 0xBE, 0xDC)

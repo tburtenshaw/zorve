@@ -1,6 +1,8 @@
 #include "zorve.h"
 #include "zorveres.h"
+#include "list.h"
 #include "info.h"
+#include "stdio.h"
 
 //This registers the Window Class for the list files
 int InfoWindowRegisterWndClass(HINSTANCE hInst)
@@ -85,6 +87,17 @@ int  InfoWindowLoadFile(HWND hwnd, char *filename)
 	ReadFile(infoFile, &infoFileStruct->description, 512, &n, NULL);
 	infoFileStruct->description[511]=0;	//terminate the string, just in case it isn't
 
+	//Supplementary time and date
+	SetFilePointer(infoFile, 0x0288, NULL, FILE_BEGIN);
+	ReadFile(infoFile, &infoFileStruct->modjulianday, 2, &n, NULL);
+	infoFileStruct->modjulianday=swap_endian_word(infoFileStruct->modjulianday);
+	//then the hour and minute
+	ReadFile(infoFile, &infoFileStruct->decimalbyteHour, 1, &n, NULL);
+	ReadFile(infoFile, &infoFileStruct->decimalbyteMinute, 1, &n, NULL);
+	infoFileStruct->decimalbyteHour=(infoFileStruct->decimalbyteHour & 0x0F) + ((infoFileStruct->decimalbyteHour & 0xF0)/16)*10;
+	infoFileStruct->decimalbyteMinute=(infoFileStruct->decimalbyteMinute & 0x0F) + ((infoFileStruct->decimalbyteMinute & 0xF0)/16)*10;
+
+
 	//time, size and duration (first copy)
 	SetFilePointer(infoFile, 0x0294, NULL, FILE_BEGIN);
 	ReadFile(infoFile, &infoFileStruct->unixtime, 4, &n, NULL);
@@ -95,6 +108,21 @@ int  InfoWindowLoadFile(HWND hwnd, char *filename)
 	SetFilePointer(infoFile, 0x02a8, NULL, FILE_BEGIN);
 	ReadFile(infoFile, &infoFileStruct->duration, 4, &n, NULL);
 
+	//Read the associated MPEG
+	SetFilePointer(infoFile, 0x0c04, NULL, FILE_BEGIN);
+	ReadFile(infoFile, &infoFileStruct->assocMpeg, 256, &n, NULL);
+
+	//Read the associated Nav file
+	SetFilePointer(infoFile, 0x0d04, NULL, FILE_BEGIN);
+	ReadFile(infoFile, &infoFileStruct->assocNav, 256, &n, NULL);
+
+	//read the pids
+	SetFilePointer(infoFile, 0x0e04, NULL, FILE_BEGIN);	//read the first one
+	ReadFile(infoFile, &infoFileStruct->PID[0], 2, &n, NULL);
+
+	//Read the associated JPEG
+	SetFilePointer(infoFile, 0x0e60, NULL, FILE_BEGIN);
+	ReadFile(infoFile, &infoFileStruct->assocJpeg, 256, &n, NULL);
 
 
 	CloseHandle(infoFile);
@@ -155,7 +183,7 @@ LRESULT CALLBACK ChildWndInfoProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 
 			infoFile->windowInfo.editHwndDescription =	CreateWindow("EDIT", "Description",
 				    					WS_CHILD|WS_VISIBLE|ES_LEFT|WS_TABSTOP|WS_BORDER|ES_AUTOVSCROLL|ES_MULTILINE,
-									    100,40,250,60, hwnd, NULL, hInst, NULL);
+									    100,40,0,0, hwnd, NULL, hInst, NULL);
 			SendMessage(infoFile->windowInfo.editHwndDescription, EM_LIMITTEXT, 200, 0);	//limit text to 200 chars
 
 			infoFile->windowInfo.buttonHwndSaveAll =	CreateWindow("BUTTON", "Save changes",
@@ -167,9 +195,24 @@ LRESULT CALLBACK ChildWndInfoProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 
 			break;
 		case WM_COMMAND:
+			HWND hwndListWindow;
+			LISTWINDOW_INFO* infoFromListWindow;
+			DIRECTORY_LIST* entryFromListWindow;
+
 			infoFile = (INFOFILE_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
-			if (lparam==(LPARAM)infoFile->windowInfo.buttonHwndSaveAll)
+			if (lparam==(LPARAM)infoFile->windowInfo.buttonHwndSaveAll)	{
 				SaveInfoChanges(hwnd, infoFile);
+				hwndListWindow = ZorveGetHwndList();
+				infoFromListWindow = (LISTWINDOW_INFO*)GetWindowLong(hwndListWindow, GWL_USERDATA);
+				entryFromListWindow = ListWindowGetEntryFromFilename(infoFromListWindow, infoFile->filename);
+				RefreshAndOrSelectEntry(infoFromListWindow, entryFromListWindow, TRUE, FALSE);
+				InvalidateRect(hwndListWindow, NULL, FALSE);
+
+
+			}
+			if (lparam==(LPARAM)infoFile->windowInfo.buttonHwndRevert)
+				InfoWindowLoadFile(hwnd, infoFile->filename);
+
 			break;
 		case WM_SIZE:
 			InvalidateRect(hwnd, NULL, FALSE);
@@ -198,6 +241,11 @@ void PaintInfoWindow(HWND hwnd)
 
 	TEXTMETRIC textMetric;
 	SIZE sizeTextExtent;
+	char outputText[255];
+
+	FILETIME filetime;
+	SYSTEMTIME systemtime;
+
 	int xEditColumn;
 	int y;
 	int height;
@@ -214,10 +262,7 @@ void PaintInfoWindow(HWND hwnd)
 	//Blank our canvas
 	ExtTextOut(hdc, 0,0,ETO_OPAQUE, &clientRect, infoFile->filename,strlen(infoFile->filename), NULL);
 
-
-	xEditColumn=180;
 	y=24;
-	height=20;
 
 	GetTextMetrics(hdc, &textMetric);
 	height=textMetric.tmHeight;
@@ -237,6 +282,42 @@ void PaintInfoWindow(HWND hwnd)
 
 	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, "Description:", 12, NULL);
 	MoveWindow(infoFile->windowInfo.editHwndDescription, xEditColumn+margin, y, (clientRect.right-clientRect.left)-xEditColumn-margin-margin,height*4+4, TRUE);
+	y+=height*4+4 +margin;
+
+	textRect.left=margin; textRect.right=clientRect.right;
+	textRect.top=y; textRect.bottom=y+height;
+	ModJulianTimeToFileTime(infoFile->modjulianday, &filetime);
+	FileTimeToSystemTime(&filetime, &systemtime);
+	sprintf(outputText, "Julian Date: %i/%i/%i, Bytewise Time: %02i:%02i", systemtime.wDay, systemtime.wMonth, systemtime.wYear, infoFile->decimalbyteHour, infoFile->decimalbyteMinute);
+	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, outputText, strlen(outputText), NULL);
+	y+=height+margin;
+
+	textRect.left=margin; textRect.right=clientRect.right;
+	textRect.top=y; textRect.bottom=y+height;
+	UnixTimeToFileTime(infoFile->unixtime, &filetime);
+	FileTimeToSystemTime(&filetime, &systemtime);
+	sprintf(outputText, "UTC Date/Time: %i/%i/%i, %02i:%02i:%02i", systemtime.wDay, systemtime.wMonth, systemtime.wYear, systemtime.wHour, systemtime.wMinute, systemtime.wSecond);
+	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, outputText, strlen(outputText), NULL);
+	y+=height+margin;
+
+	textRect.left=margin; textRect.right=clientRect.right;
+	textRect.top=y; textRect.bottom=y+height;
+	sprintf(outputText, "First PID: 0x%03x (%s) ", infoFile->PID[0], ReturnChannelNameFromPID(infoFile->PID[0]));
+	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, outputText, strlen(outputText), NULL);
+	y+=height+margin;
+
+	textRect.left=margin; textRect.right=clientRect.right;
+	textRect.top=y; textRect.bottom=y+height;
+	sprintf(outputText, "MpegTS: %s ", infoFile->assocMpeg);
+	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, outputText, strlen(outputText), NULL);
+	y+=height+margin;
+
+	textRect.left=margin; textRect.right=clientRect.right;
+	textRect.top=y; textRect.bottom=y+height;
+	sprintf(outputText, "Navigation: %s ", infoFile->assocNav);
+	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, outputText, strlen(outputText), NULL);
+	y+=height+margin;
+
 
 	EndPaint(hwnd, &psPaint);
 

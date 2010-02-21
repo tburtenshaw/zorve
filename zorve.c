@@ -199,9 +199,9 @@ void MainWndProc_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
 			result = GetFileName(openfilename,sizeof(openfilename));
 
 			if (result)	{
+				//This loads the infofile after popping up (or making) the infowindow
 				hwndInfo = InfoWindowCreateOrShow(hwndInfo, hwndMDIClient, hInstProgram);
 				InfoWindowLoadFile(hwndInfo, &openfilename[0]);
-
 
 				//Change folder
 				lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(hwndList, GWL_USERDATA);
@@ -213,6 +213,9 @@ void MainWndProc_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
 					SetListDirectory(lpDirectoryInfo, openfilename);
 					*p=92;
 				}
+				//Now we need to select this loaded item
+				RefreshAndOrSelectEntry(lpListWindowInfo, ListWindowGetEntryFromFilename(lpListWindowInfo, openfilename), FALSE, TRUE);
+
 				InvalidateRect(lpListWindowInfo->hwndFolder, NULL, FALSE);
 				InvalidateRect(lpListWindowInfo->hwndFiles, NULL, FALSE);
 			}
@@ -417,6 +420,21 @@ void UnixTimeToFileTime(long unixtime, LPFILETIME pft)
 	ll = Int32x32To64(unixtime, 10000000) + 116444736000000000;
 	pft->dwLowDateTime = (DWORD)ll;
 	pft->dwHighDateTime = ll >> 32;
+
+	return;
+}
+
+void ModJulianTimeToFileTime(int juliantime, LPFILETIME pft)
+{
+	#define FILETIMEJULIANDIFF 94187	//the difference of 1 Jan 1601 and 17 Nov 1858
+
+	LONGLONG ll;
+	ll=(LONGLONG)((LONG)(juliantime +FILETIMEJULIANDIFF)) * (LONGLONG)864000000000;	//multiply by number of 100 ns in one day
+
+	pft->dwLowDateTime = (DWORD)ll;
+	pft->dwHighDateTime = ll >> 32;
+
+	return;
 }
 
 void BytesDisplayNice(long bytes, char *formatString, int thresholdratio, char *outputString)
@@ -463,7 +481,7 @@ void DurationShortFormatDHMS(long duration, char *outputString)
 
 	if (duration>=60)
 		minutes=(duration/60)%60;
-	if (duration>=36000)
+	if (duration>=3600)
 		hours=(duration/3600)%24;
 	if (duration>=86400)
 		days=(duration/86400);
@@ -471,7 +489,7 @@ void DurationShortFormatDHMS(long duration, char *outputString)
 	outputString[0]=0;
 	if (duration>=86400)
 		sprintf(outputString, "%id ", days);
-	if (duration>=36000)
+	if (duration>=3600)
     	sprintf(outputString, "%s%ih ", outputString, hours);
 	if (duration>=60)
 		sprintf(outputString, "%s%im ", outputString, minutes);
@@ -491,4 +509,58 @@ void ZorveSetHwndInfo(HWND hwnd)
 	hwndInfo=hwnd;
 
 	return;
+}
+
+HWND ZorveGetHwndList()
+{
+
+	return hwndList;
+}
+
+void ZorveSetHwndList(HWND hwnd)
+{
+	hwndList=hwnd;
+
+	return;
+}
+
+WORD swap_endian_word(WORD i)
+{
+    return ((i>>8)&0xff)+((i << 8)&0xff00);
+}
+
+
+char * ReturnChannelNameFromPID(int pid)
+{
+
+	switch (pid)	{
+		case 0x00FA:
+	   		return "TV1";
+		case 0x00FB:
+			return "TV2";
+		case 0x00FC:
+		 	return "TVNZ6";
+		case 0x00FD:
+		 	return "TVNZ7";
+		case 0x01C2:
+		 	return "TV3";
+		case 0x01C3:
+		 	return "C4";
+		case 0x01C4:
+		 	return "TV3+1";
+		case 0x0226:
+		 	return "Maori TV";
+		case 0x0227:
+		 	return "Parliament TV";
+		case 0x0229:
+		 	return "Chinese TV";
+		case 0x022A:
+		 	return "Prime";
+		case 0x022C:
+		 	return "Freeview HD";
+	}
+
+
+	return NULL;
+
 }
