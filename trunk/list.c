@@ -42,7 +42,7 @@ int ListWindowRegisterWndClasses(HINSTANCE hInst)
 	if (!RegisterClass((LPWNDCLASS)&wc))
 		return 0;
 
-	wc.style         = 0;
+	wc.style         = CS_DBLCLKS;
 	wc.lpfnWndProc   = (WNDPROC)ListChildFileProc;
 	wc.cbClsExtra    = 0;
 	wc.cbWndExtra    = 20;
@@ -112,8 +112,8 @@ LRESULT CALLBACK ChildWndListProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 
 			lpDirectoryInfo=&lpListWindowInfo->directoryInfo;	//the directory pointer is set to the location in the windowinfostruct
 			lpDirectoryInfo->parentListWindowInfo = lpListWindowInfo;
-			//SetListDirectory(lpDirectoryInfo, NULL);	//Set the directory to the default, this will call another function that fills the linked list
-			SetListDirectory(lpDirectoryInfo, "L:\\Record_Video\\");	//Set the directory to the default, this will call another function that fills the linked list
+			SetListDirectory(lpDirectoryInfo, NULL);	//Set the directory to the default, this will call another function that fills the linked list
+			//SetListDirectory(lpDirectoryInfo, "L:\\Record_Video\\");	//Set the directory to the default, this will call another function that fills the linked list
 
 			lpListWindowInfo->heightFolderSelector=50;
 
@@ -162,8 +162,6 @@ LRESULT CALLBACK ListChildFileProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lpara
 	HWND hwndInfo;
 
 	POINT point;
-	int xPos;
-	int yPos;
 
 	switch(msg) {
 		case WM_PAINT:
@@ -176,20 +174,13 @@ LRESULT CALLBACK ListChildFileProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lpara
 		case WM_SIZE:
 			InvalidateRect(hwnd, NULL, FALSE);
 			break;
-
+		case WM_LBUTTONDBLCLK:
+			return 0;
+			break;
+		case WM_MOUSEWHEEL:
+			return ListWindowOnMouseWheel(hwnd, (short)HIWORD(wparam));
 		case WM_VSCROLL:
-			lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);
-			if (wparam==SB_LINEDOWN)	{
-				lpListWindowInfo->firstLine++;
-				InvalidateRect(hwnd, NULL, FALSE);
-			}
-
-			if (wparam==SB_LINEUP)	{
-				lpListWindowInfo->firstLine--;
-				if (lpListWindowInfo->firstLine<0) lpListWindowInfo->firstLine=0;
-				InvalidateRect(hwnd, NULL, FALSE);
-			}
-
+			ListWindowHandleVScroll(hwnd, wparam, lparam);
 			break;
 		case WM_LBUTTONDOWN:
 		//case WM_LBUTTONDBLCLK:
@@ -313,7 +304,6 @@ int PaintListFileWindow(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo)
 	SYSTEMTIME systemtime;
 
 	SCROLLINFO scrollInfo;
-	int numberFullLines;
 
 	int smallcolumnwidth=80;
 	int dividerlinewidth=2;
@@ -446,13 +436,20 @@ int PaintListFileWindow(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo)
 		y+=3*heightLine+dividerlinewidth;
 
 		if (y<=clientRect.bottom)	//if this is true, then we have displayed a full line
-			numberFullLines=llist->index - lpListWindowInfo->firstLine;
+			lpListWindowInfo->fullyDisplayedLines=llist->index - lpListWindowInfo->firstLine;
 
 		llist=llist->next;
 	}
 
-	if (y<clientRect.bottom)
-		numberFullLines=lpDirectoryInfo->numberOfFiles;
+	//Because we don't display these, we need to ensure their bounding rects are gone
+	while (llist)	{
+		llist->boundingRect.left=-1; llist->boundingRect.right=-1;
+		llist->boundingRect.top=-1; llist->boundingRect.bottom=-1;
+		llist=llist->next;
+	}
+
+	if (y<clientRect.bottom)	//if we don't get to the end, work it out by dividing
+		lpListWindowInfo->fullyDisplayedLines=(clientRect.bottom-clientRect.top) / (3*heightLine+dividerlinewidth);
 
 	SetBkColor(hdc, RGB_ZINNY_MIDPURPLE);
 	textRect.left=clientRect.left; textRect.right=clientRect.right;
@@ -468,7 +465,7 @@ int PaintListFileWindow(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo)
 	//Scrollbars
 	scrollInfo.cbSize = sizeof(SCROLLINFO);
 	scrollInfo.fMask = SIF_PAGE|SIF_POS|SIF_RANGE;
-	scrollInfo.nPage=numberFullLines;
+	scrollInfo.nPage=lpListWindowInfo->fullyDisplayedLines;
 	scrollInfo.nMin=0;
 	scrollInfo.nMax=lpDirectoryInfo->numberOfFiles;
 	scrollInfo.nPos=lpListWindowInfo->firstLine;
@@ -477,6 +474,87 @@ int PaintListFileWindow(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo)
 
 	return 0;
 }
+
+int ListWindowHandleVScroll(HWND hwnd, WPARAM wparam, LPARAM lparam)
+{
+	LISTWINDOW_INFO *lpListWindowInfo;
+
+	lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);
+
+	short nSBCode;
+
+	nSBCode=LOWORD(wparam);
+
+	switch (nSBCode)	{
+		case SB_TOP:
+			lpListWindowInfo->firstLine=0;
+			InvalidateRect(hwnd, NULL, FALSE);
+			break;
+		case SB_BOTTOM:
+			lpListWindowInfo->firstLine = (lpListWindowInfo->directoryInfo.numberOfFiles - lpListWindowInfo->fullyDisplayedLines);
+			InvalidateRect(hwnd, NULL, FALSE);
+			break;
+		case SB_LINEDOWN:
+			if (lpListWindowInfo->firstLine < (lpListWindowInfo->directoryInfo.numberOfFiles - lpListWindowInfo->fullyDisplayedLines))
+			lpListWindowInfo->firstLine++;
+			InvalidateRect(hwnd, NULL, FALSE);
+			break;
+		case SB_LINEUP:
+			if (lpListWindowInfo->firstLine>0)	{
+				lpListWindowInfo->firstLine--;
+				InvalidateRect(hwnd, NULL, FALSE);
+			}
+			break;
+		case SB_PAGEDOWN:
+			lpListWindowInfo->firstLine+=lpListWindowInfo->fullyDisplayedLines;
+			if (lpListWindowInfo->firstLine > (lpListWindowInfo->directoryInfo.numberOfFiles - lpListWindowInfo->fullyDisplayedLines))
+				lpListWindowInfo->firstLine = (lpListWindowInfo->directoryInfo.numberOfFiles - lpListWindowInfo->fullyDisplayedLines);
+			InvalidateRect(hwnd, NULL, FALSE);
+			break;
+		case SB_PAGEUP:
+			lpListWindowInfo->firstLine-=lpListWindowInfo->fullyDisplayedLines;
+			if (lpListWindowInfo->firstLine <0)
+				lpListWindowInfo->firstLine = 0;
+			InvalidateRect(hwnd, NULL, FALSE);
+			break;
+		case SB_THUMBPOSITION:
+		case SB_THUMBTRACK:
+			lpListWindowInfo->firstLine = HIWORD(wparam);
+			InvalidateRect(hwnd, NULL, FALSE);
+			break;
+	}
+
+	return 0;
+}
+
+long ListWindowOnMouseWheel(HWND hwnd, short nDelta)
+{
+	LISTWINDOW_INFO *lpListWindowInfo;
+	lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);
+
+	int oldFirstLine;
+
+	MessageBox(hwnd,"t","t",0);
+
+	oldFirstLine = lpListWindowInfo->firstLine;
+
+	if (nDelta<0) {
+		if (lpListWindowInfo->firstLine < (lpListWindowInfo->directoryInfo.numberOfFiles - lpListWindowInfo->fullyDisplayedLines))	{
+			lpListWindowInfo->firstLine++;
+		}
+	}
+	if (nDelta>0) {
+		if (lpListWindowInfo->firstLine>0)	{
+			lpListWindowInfo->firstLine--;
+		}
+	}
+
+	if (oldFirstLine!=lpListWindowInfo->firstLine)
+		InvalidateRect(hwnd, NULL, FALSE);
+
+	return 0;
+}
+
 
 int SetListDirectory(DIRECTORY_INFO *lpDirectoryInfo, char *directorypath)
 {
@@ -543,10 +621,6 @@ int CheckAndAddFileToList(DIRECTORY_INFO *lpDirectoryInfo, WIN32_FIND_DATA *file
 
 	DIRECTORY_LIST newEntry;
 
-	//needed for filemanagement part
-	long n;
-	long magic;
-	int dummyint;
 
 	//First some simple tests to exclude them
 	if (!(fileToAdd->nFileSizeLow==4096))
@@ -563,26 +637,7 @@ int CheckAndAddFileToList(DIRECTORY_INFO *lpDirectoryInfo, WIN32_FIND_DATA *file
 	strcat(fullFilePathAndName, fileToAdd->cFileName);
 
 	//Now open up the file and  read some information
-	//(I wonder if this FILE_FLAG_OPEN_NO_RECALL is useful if network gets set up)
-	infoFile = CreateFile(fullFilePathAndName, GENERIC_READ, FILE_SHARE_READ, NULL,
-				OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS, NULL);
-
-	ReadFile(infoFile, &magic, 4, &n, NULL);	//if this isn't 00080500 then should fail
-	ReadFile(infoFile, &dummyint, 2, &n, NULL);
-	ReadFile(infoFile, newEntry.recordingname, 120, &n, NULL);
-
-	SetFilePointer(infoFile, 0x0294, NULL, FILE_BEGIN);
-	ReadFile(infoFile, &newEntry.unixtime, 4, &n, NULL);
-
-	SetFilePointer(infoFile, 0x02a0, NULL, FILE_BEGIN);
-	ReadFile(infoFile, &newEntry.filesize, 4, &n, NULL);
-
-	SetFilePointer(infoFile, 0x02a8, NULL, FILE_BEGIN);
-	ReadFile(infoFile, &newEntry.duration, 4, &n, NULL);
-
-
-	CloseHandle(infoFile);
-
+	ListWindowReadFileDetails(&newEntry, fullFilePathAndName);
 
 	strcpy(newEntry.filename, fullFilePathAndName);
 
@@ -596,6 +651,64 @@ int CheckAndAddFileToList(DIRECTORY_INFO *lpDirectoryInfo, WIN32_FIND_DATA *file
 	return 1;
 }
 
+int ListWindowReadFileDetails(DIRECTORY_LIST* directoryItem, char* filename)
+{
+	HANDLE infoFile;
+
+	long n;
+	long magic;
+	int dummyint;
+
+	//(I wonder if this FILE_FLAG_OPEN_NO_RECALL is useful if network gets set up)
+	infoFile = CreateFile(filename, GENERIC_READ, FILE_SHARE_READ, NULL,
+				OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS, NULL);
+
+	ReadFile(infoFile, &magic, 4, &n, NULL);	//if this isn't 00080500 then should fail
+	ReadFile(infoFile, &dummyint, 2, &n, NULL);
+	ReadFile(infoFile, directoryItem->recordingname, 120, &n, NULL);
+
+	SetFilePointer(infoFile, 0x0294, NULL, FILE_BEGIN);
+	ReadFile(infoFile, &directoryItem->unixtime, 4, &n, NULL);
+
+	SetFilePointer(infoFile, 0x02a0, NULL, FILE_BEGIN);
+	ReadFile(infoFile, &directoryItem->filesize, 4, &n, NULL);
+
+	SetFilePointer(infoFile, 0x02a8, NULL, FILE_BEGIN);
+	ReadFile(infoFile, &directoryItem->duration, 4, &n, NULL);
+
+
+	CloseHandle(infoFile);
+
+	return 0;
+
+}
+
+DIRECTORY_LIST* ListWindowGetEntryFromFilename(LISTWINDOW_INFO* windowInfo, char* filename)
+{
+	DIRECTORY_LIST* llist;
+
+	//Go throught the linked list
+	llist=windowInfo->directoryInfo.first;
+
+	while (llist)	{
+		if (!strcmp(llist->filename, filename))
+			return llist;
+		llist=llist->next;
+	}
+
+
+	return NULL;
+}
+
+int RefreshAndOrSelectEntry(LISTWINDOW_INFO* windowInfo, DIRECTORY_LIST* entry, BOOL bRefresh, BOOL bSelect)
+{
+	if (bRefresh)
+		ListWindowReadFileDetails(entry, entry->filename);
+	if (bSelect)
+		windowInfo->selectedLine=entry->index;
+
+	return 0;
+}
 
 //This mallocs a new entry, then adds it to the linked list
 DIRECTORY_LIST* AddEntryCopyToList(DIRECTORY_INFO *lpDirectory, DIRECTORY_LIST *dirToAdd)

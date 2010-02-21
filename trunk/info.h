@@ -28,23 +28,25 @@ struct sInfoFileInformation
 
 	char description[512];		//Very comfortable number of bytes
 
-	int decimalbyteHour;
-	int decimalbyteMinute;
+	int modjulianday;		//Modified Julian date of recording
+	char decimalbyteHour;
+	char decimalbyteMinute;
 
 	char assocMpeg[256];
 	char assocNav[256];
 	char assocJpeg[256];
 
 	//PIDs
-	int PID[8];			//Arbitary - I don't think any of ours have eight PIDs
+	unsigned short PID[8];			//Arbitary - I don't think any of ours have eight PIDs
 
-	//All these things happen twice - prefix dup
+	//All these things happen twice - prefix dup_
 	long dup_unixtime;				//From the unix time (loaded, not calculated)
 	unsigned long dup_duration;		//the duration in seconds as loaded
 	unsigned long dup_filesize;		//the file size as loaded
 
-	int dup_decimalbyteHour;
-	int dup_decimalbyteMinute;
+	int dup_modjulianday;
+	char dup_decimalbyteHour;
+	char dup_decimalbyteMinute;
 
 	//I don't like doing this, but this contains hwnds etc.
 	//I'd prefer to have the file stuff as subset - but too lazy to fix

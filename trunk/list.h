@@ -55,6 +55,7 @@ struct sListWindowInfo
 	int heightFolderSelector;	//The height of the folder selector
 
 	int firstLine;				//First line displayed
+	int fullyDisplayedLines;	//The number of fully displayed lines (i.e. not partially displayed)
 
 	int	selectedLine;
 	int caretedLine;
@@ -64,19 +65,27 @@ struct sListWindowInfo
 };
 
 
+//Initiation/backbone stuff
 int ListWindowRegisterWndClasses(HINSTANCE hInst);	//Registers the class "ListWndClass" and its children
 HWND ListWindowCreate(HWND hwndMDIClient, HINSTANCE hInst);
 LRESULT CALLBACK ChildWndListProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam);
 LRESULT CALLBACK ListChildFolderProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam);
 LRESULT CALLBACK ListChildFileProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam);
 
-
+//Display stuff
 int PaintListFileWindow(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo);
 int PaintListFolderWindow(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo);
+int ListWindowHandleVScroll(HWND hwnd, WPARAM wparam, LPARAM lparam);
+long ListWindowOnMouseWheel(HWND hwnd, short nDelta);
+
+//File stuff
 int SetListDirectory(DIRECTORY_INFO *lpDirectoryInfo, char *directorypath);
 int UpdateDirectoryList(DIRECTORY_INFO *lpDirectoryInfo);
 int CheckAndAddFileToList(DIRECTORY_INFO *lpDirectoryInfo, WIN32_FIND_DATA *fileToAdd);
+int ListWindowReadFileDetails(DIRECTORY_LIST* directoryItem, char* filename);
+int RefreshAndOrSelectEntry(LISTWINDOW_INFO* windowInfo, DIRECTORY_LIST* entry, BOOL bRefresh, BOOL bSelect);
 
 //Linked list functions
 DIRECTORY_LIST* AddEntryCopyToList(DIRECTORY_INFO *lpDirectory, DIRECTORY_LIST *dirToAdd);
 void	DeleteDirectoryList(DIRECTORY_INFO *lpDirectoryInfo);
+DIRECTORY_LIST* ListWindowGetEntryFromFilename(LISTWINDOW_INFO* windowInfo, char* filename);
