@@ -61,12 +61,18 @@ int ListWindowRegisterWndClasses(HINSTANCE hInst)
 }
 
 //Creates the list window
-HWND ListWindowCreate(HWND hwndMDIClient, HINSTANCE hInst)
+HWND ListWindowCreateOrShow(HWND currentListWindowHwnd, HWND hwndMDIClient, HINSTANCE hInst)
 {
 	HWND  hwndChild;
 	MDICREATESTRUCT mcs;
 
 	LISTWINDOW_INFO *lpListWindowInfo;
+
+	if (IsWindow(currentListWindowHwnd))	{
+		ShowWindow(currentListWindowHwnd, SW_SHOW);
+		return currentListWindowHwnd;
+	}
+
 
 	mcs.szClass = "ListWndClass";      // window class name
 	mcs.szTitle = "Recorded List";             // window title
@@ -130,6 +136,12 @@ LRESULT CALLBACK ChildWndListProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 			MoveWindow(lpListWindowInfo->hwndFiles,
 							0, lpListWindowInfo->heightFolderSelector,
 							clientRect.right-clientRect.left, clientRect.bottom-clientRect.top-lpListWindowInfo->heightFolderSelector, TRUE);
+			break;
+		case WM_DESTROY:
+			lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
+			DeleteDirectoryList(&lpListWindowInfo->directoryInfo);
+			free(lpListWindowInfo);
+			ZorveSetHwndList(NULL);
 
 			break;
 
@@ -174,6 +186,13 @@ LRESULT CALLBACK ListChildFileProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lpara
 		case WM_SIZE:
 			InvalidateRect(hwnd, NULL, FALSE);
 			break;
+		case WM_KEYDOWN:
+			if (wparam==VK_DOWN)	{
+				lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);
+				lpListWindowInfo->firstLine++;
+				InvalidateRect(hwnd, NULL, FALSE);
+			}
+			break;
 		case WM_LBUTTONDBLCLK:
 			return 0;
 			break;
@@ -209,8 +228,6 @@ LRESULT CALLBACK ListChildFileProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lpara
 
 				llist=llist->next;
 			}
-
-
 
 			break;
 
@@ -438,6 +455,7 @@ int PaintListFileWindow(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo)
 		if (y<=clientRect.bottom)	//if this is true, then we have displayed a full line
 			lpListWindowInfo->fullyDisplayedLines=llist->index - lpListWindowInfo->firstLine;
 
+
 		llist=llist->next;
 	}
 
@@ -448,7 +466,7 @@ int PaintListFileWindow(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo)
 		llist=llist->next;
 	}
 
-	if (y<clientRect.bottom)	//if we don't get to the end, work it out by dividing
+//	if (y<clientRect.bottom)	//if we don't get to the end, work it out by dividing
 		lpListWindowInfo->fullyDisplayedLines=(clientRect.bottom-clientRect.top) / (3*heightLine+dividerlinewidth);
 
 	SetBkColor(hdc, RGB_ZINNY_MIDPURPLE);
@@ -467,7 +485,7 @@ int PaintListFileWindow(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo)
 	scrollInfo.fMask = SIF_PAGE|SIF_POS|SIF_RANGE;
 	scrollInfo.nPage=lpListWindowInfo->fullyDisplayedLines;
 	scrollInfo.nMin=0;
-	scrollInfo.nMax=lpDirectoryInfo->numberOfFiles;
+	scrollInfo.nMax=lpDirectoryInfo->numberOfFiles-1;
 	scrollInfo.nPos=lpListWindowInfo->firstLine;
 
 	SetScrollInfo(hwnd, SB_VERT, &scrollInfo, TRUE);
@@ -704,8 +722,14 @@ int RefreshAndOrSelectEntry(LISTWINDOW_INFO* windowInfo, DIRECTORY_LIST* entry, 
 {
 	if (bRefresh)
 		ListWindowReadFileDetails(entry, entry->filename);
-	if (bSelect)
+	if (bSelect)	{
 		windowInfo->selectedLine=entry->index;
+		if (entry->index > windowInfo->firstLine+windowInfo->fullyDisplayedLines-1)
+			windowInfo->firstLine+=entry->index-(windowInfo->firstLine+windowInfo->fullyDisplayedLines)+1;
+		if (entry->index < windowInfo->firstLine)
+			windowInfo->firstLine=entry->index;
+
+	}
 
 	return 0;
 }

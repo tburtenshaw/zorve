@@ -188,10 +188,10 @@ LRESULT CALLBACK ChildWndInfoProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 
 			infoFile->windowInfo.buttonHwndSaveAll =	CreateWindow("BUTTON", "Save changes",
 				    					WS_CHILD|WS_VISIBLE|WS_TABSTOP|WS_BORDER|BS_PUSHBUTTON,
-									    20,250,120,24, hwnd, NULL, hInst, NULL);
+									    20,250,0,0, hwnd, NULL, hInst, NULL);
 			infoFile->windowInfo.buttonHwndRevert =	CreateWindow("BUTTON", "Revert",
 				    					WS_CHILD|WS_VISIBLE|WS_TABSTOP|WS_BORDER|BS_PUSHBUTTON,
-									    160,250,120,24, hwnd, NULL, hInst, NULL);
+									    160,250,0,0, hwnd, NULL, hInst, NULL);
 
 			break;
 		case WM_COMMAND:
@@ -203,9 +203,15 @@ LRESULT CALLBACK ChildWndInfoProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 			if (lparam==(LPARAM)infoFile->windowInfo.buttonHwndSaveAll)	{
 				SaveInfoChanges(hwnd, infoFile);
 				hwndListWindow = ZorveGetHwndList();
+				if (!(IsWindow(hwndListWindow)))	{
+					hwndListWindow = ListWindowCreateOrShow(hwndListWindow, GetParent(hwnd), (HINSTANCE)GetWindowLong(hwnd, GWL_HINSTANCE));
+					ZorveSetHwndList(hwndListWindow);
+
+				}
+
 				infoFromListWindow = (LISTWINDOW_INFO*)GetWindowLong(hwndListWindow, GWL_USERDATA);
 				entryFromListWindow = ListWindowGetEntryFromFilename(infoFromListWindow, infoFile->filename);
-				RefreshAndOrSelectEntry(infoFromListWindow, entryFromListWindow, TRUE, FALSE);
+				RefreshAndOrSelectEntry(infoFromListWindow, entryFromListWindow, TRUE, TRUE);
 				InvalidateRect(hwndListWindow, NULL, FALSE);
 
 
@@ -223,7 +229,11 @@ LRESULT CALLBACK ChildWndInfoProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 		case WM_ERASEBKGND:
 			return 1;
 			break;
-
+		case WM_DESTROY:
+			infoFile = (INFOFILE_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
+			free(infoFile);
+			ZorveSetHwndInfo(NULL);
+			break;
 	}
 	return DefMDIChildProc(hwnd, msg, wparam, lparam);
 }
@@ -250,6 +260,10 @@ void PaintInfoWindow(HWND hwnd)
 	int y;
 	int height;
 	int margin=5;
+
+	int xbuttonpos;
+	int buttonwidth;
+	int buttonheight;
 
 
 	infoFile=(INFOFILE_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
@@ -318,6 +332,18 @@ void PaintInfoWindow(HWND hwnd)
 	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, outputText, strlen(outputText), NULL);
 	y+=height+margin;
 
+
+	buttonheight=height+4+4;
+	buttonwidth=140;
+	xbuttonpos=clientRect.right-margin-buttonwidth;
+	y=clientRect.bottom-margin-buttonheight;
+
+	MoveWindow(infoFile->windowInfo.buttonHwndRevert, xbuttonpos, y, buttonwidth, buttonheight, TRUE);
+	InvalidateRect(infoFile->windowInfo.buttonHwndRevert, NULL, TRUE);
+
+	xbuttonpos=clientRect.right-margin-buttonwidth-margin-buttonwidth;
+	MoveWindow(infoFile->windowInfo.buttonHwndSaveAll, xbuttonpos, y, buttonwidth, buttonheight, TRUE);
+	InvalidateRect(infoFile->windowInfo.buttonHwndSaveAll, NULL, TRUE);
 
 	EndPaint(hwnd, &psPaint);
 
