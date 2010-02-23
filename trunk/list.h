@@ -67,7 +67,7 @@ struct sListWindowInfo
 
 //Initiation/backbone stuff
 int ListWindowRegisterWndClasses(HINSTANCE hInst);	//Registers the class "ListWndClass" and its children
-HWND ListWindowCreate(HWND hwndMDIClient, HINSTANCE hInst);
+HWND ListWindowCreateOrShow(HWND listHwnd, HWND hwndMDIClient, HINSTANCE hInst);
 LRESULT CALLBACK ChildWndListProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam);
 LRESULT CALLBACK ListChildFolderProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam);
 LRESULT CALLBACK ListChildFileProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam);

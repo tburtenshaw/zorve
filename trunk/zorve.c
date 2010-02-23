@@ -16,10 +16,10 @@ HWND hwndMDIClient;		//Mdi client window handle
 HWND hwndToolBar;
 HWND  hWndStatusbar;
 
-HWND hwndList;
-HWND hwndInfo;
-HWND hwndMpeg;
-HWND hwndNav;
+HWND hwndList = NULL;
+HWND hwndInfo = NULL;
+HWND hwndMpeg = NULL;
+HWND hwndNav  = NULL;
 
 LRESULT CALLBACK MainWndProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam);
 
@@ -204,6 +204,11 @@ void MainWndProc_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
 				InfoWindowLoadFile(hwndInfo, &openfilename[0]);
 
 				//Change folder
+				if (!(IsWindow(hwndList)))	{
+					hwndList = ListWindowCreateOrShow(hwndList, hwndMDIClient, hInstProgram);
+				}
+
+
 				lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(hwndList, GWL_USERDATA);
 				lpDirectoryInfo=&lpListWindowInfo->directoryInfo;
 
@@ -289,6 +294,11 @@ LRESULT CALLBACK MainWndProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam)
 			break;
 		case WM_DESTROY:
 			PostQuitMessage(0);
+			break;
+		case WM_KEYDOWN:
+		case WM_MOUSEWHEEL:
+		case WM_CHAR:
+			MessageBox(0,"Key/mousewheel down in MainWndProc", "Detected input!", 0);
 			break;
 		default:
 			return DefFrameProc(hwnd,hwndMDIClient,msg,wParam,lParam);
@@ -398,7 +408,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	hwndToolBar = CreateAToolBar(hwndMain);
 	ShowWindow(hwndMain,SW_SHOW);
 
-	hwndList = ListWindowCreate(hwndMDIClient, hInstProgram);
+	hwndList = ListWindowCreateOrShow(hwndList, hwndMDIClient, hInstProgram);
 
 
 	while (GetMessage(&msg,NULL,0,0)) {
