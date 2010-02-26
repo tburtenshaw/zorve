@@ -243,6 +243,7 @@ void PaintInfoWindow(HWND hwnd)
 {
 	INFOFILE_INFO *infoFile;
 
+	HINSTANCE hInst;
 	HDC hdc;
 	PAINTSTRUCT psPaint;
 
@@ -264,6 +265,9 @@ void PaintInfoWindow(HWND hwnd)
 	int xbuttonpos;
 	int buttonwidth;
 	int buttonheight;
+
+	HICON mpegIcon;
+	HICON navIcon;
 
 
 	infoFile=(INFOFILE_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
@@ -320,16 +324,24 @@ void PaintInfoWindow(HWND hwnd)
 	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, outputText, strlen(outputText), NULL);
 	y+=height+margin;
 
-	textRect.left=margin; textRect.right=clientRect.right;
+
+	hInst=(HINSTANCE)GetWindowLong(hwnd, GWL_HINSTANCE);
+
+	mpegIcon = LoadIcon(hInst, MAKEINTRESOURCE(IDI_MPEGTS));
+	DrawIconEx(hdc, margin, y, mpegIcon, 16,16, 0, NULL, DI_NORMAL);
+	textRect.left=margin+16+margin; textRect.right=clientRect.right;
 	textRect.top=y; textRect.bottom=y+height;
-	sprintf(outputText, "MpegTS: %s ", infoFile->assocMpeg);
-	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, outputText, strlen(outputText), NULL);
+	sprintf(outputText, " %s ", infoFile->assocMpeg);
+	ExtTextOut(hdc, margin+16+margin, y, ETO_OPAQUE, &textRect, outputText, strlen(outputText), NULL);
 	y+=height+margin;
 
-	textRect.left=margin; textRect.right=clientRect.right;
+
+	navIcon = LoadIcon(hInst, MAKEINTRESOURCE(IDI_NAV));
+	DrawIconEx(hdc, margin, y, navIcon, 16,16, 0, NULL, DI_NORMAL);
+	textRect.left=margin+16; textRect.right=clientRect.right;
 	textRect.top=y; textRect.bottom=y+height;
-	sprintf(outputText, "Navigation: %s ", infoFile->assocNav);
-	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, outputText, strlen(outputText), NULL);
+	sprintf(outputText, " %s ", infoFile->assocNav);
+	ExtTextOut(hdc, margin+16+margin, y, ETO_OPAQUE, &textRect, outputText, strlen(outputText), NULL);
 	y+=height+margin;
 
 

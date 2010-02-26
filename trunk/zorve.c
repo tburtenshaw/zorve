@@ -295,13 +295,8 @@ LRESULT CALLBACK MainWndProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam)
 		case WM_DESTROY:
 			PostQuitMessage(0);
 			break;
-		case WM_KEYDOWN:
-		case WM_MOUSEWHEEL:
-		case WM_CHAR:
-			MessageBox(0,"Key/mousewheel down in MainWndProc", "Detected input!", 0);
-			break;
 		default:
-			return DefFrameProc(hwnd,hwndMDIClient,msg,wParam,lParam);
+			return DefFrameProc(hwnd, hwndMDIClient, msg, wParam, lParam);
 	}
 	return DefFrameProc(hwnd,hwndMDIClient,msg,wParam,lParam);
 }
