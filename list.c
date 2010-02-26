@@ -142,8 +142,27 @@ LRESULT CALLBACK ChildWndListProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 			DeleteDirectoryList(&lpListWindowInfo->directoryInfo);
 			free(lpListWindowInfo);
 			ZorveSetHwndList(NULL);
+			break;
+		case WM_KEYDOWN:
+			lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
+			if (wparam==VK_DOWN)	{
+				lpListWindowInfo->selectedLine++;
+				if (lpListWindowInfo->selectedLine>=lpListWindowInfo->directoryInfo.numberOfFiles)
+					lpListWindowInfo->selectedLine=lpListWindowInfo->directoryInfo.numberOfFiles-1;
+				InvalidateRect(hwnd, NULL, FALSE);
+			}
+			if (wparam==VK_UP)	{
+				lpListWindowInfo->selectedLine--;
+				if (lpListWindowInfo->selectedLine<0)
+					lpListWindowInfo->selectedLine=0;
+				InvalidateRect(hwnd, NULL, FALSE);
+			}
 
 			break;
+		case WM_MOUSEWHEEL:
+			return ListWindowOnMouseWheel(hwnd, (short)HIWORD(wparam));
+			break;
+
 
 	}
 	return DefMDIChildProc(hwnd, msg, wparam, lparam);
@@ -186,25 +205,15 @@ LRESULT CALLBACK ListChildFileProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lpara
 		case WM_SIZE:
 			InvalidateRect(hwnd, NULL, FALSE);
 			break;
-		case WM_KEYDOWN:
-			if (wparam==VK_DOWN)	{
-				lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);
-				lpListWindowInfo->firstLine++;
-				InvalidateRect(hwnd, NULL, FALSE);
-			}
-			break;
 		case WM_LBUTTONDBLCLK:
+			MessageBox(hwnd, "Double click - left", "List Message",0);
 			return 0;
 			break;
-		case WM_MOUSEWHEEL:
-			return ListWindowOnMouseWheel(hwnd, (short)HIWORD(wparam));
 		case WM_VSCROLL:
 			ListWindowHandleVScroll(hwnd, wparam, lparam);
 			break;
 		case WM_LBUTTONDOWN:
 		//case WM_LBUTTONDBLCLK:
-			//xPos = GET_X_LPARAM(lparam);
-			//yPos = GET_Y_LPARAM(lparam);
 			point.x=GET_X_LPARAM(lparam);
 			point.y=GET_Y_LPARAM(lparam);
 			lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);
@@ -548,11 +557,9 @@ int ListWindowHandleVScroll(HWND hwnd, WPARAM wparam, LPARAM lparam)
 long ListWindowOnMouseWheel(HWND hwnd, short nDelta)
 {
 	LISTWINDOW_INFO *lpListWindowInfo;
-	lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);
+	lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
 
 	int oldFirstLine;
-
-	MessageBox(hwnd,"t","t",0);
 
 	oldFirstLine = lpListWindowInfo->firstLine;
 
