@@ -144,20 +144,7 @@ LRESULT CALLBACK ChildWndListProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 			ZorveSetHwndList(NULL);
 			break;
 		case WM_KEYDOWN:
-			lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
-			if (wparam==VK_DOWN)	{
-				lpListWindowInfo->selectedLine++;
-				if (lpListWindowInfo->selectedLine>=lpListWindowInfo->directoryInfo.numberOfFiles)
-					lpListWindowInfo->selectedLine=lpListWindowInfo->directoryInfo.numberOfFiles-1;
-				InvalidateRect(hwnd, NULL, FALSE);
-			}
-			if (wparam==VK_UP)	{
-				lpListWindowInfo->selectedLine--;
-				if (lpListWindowInfo->selectedLine<0)
-					lpListWindowInfo->selectedLine=0;
-				InvalidateRect(hwnd, NULL, FALSE);
-			}
-
+			return ListWindowHandleKeydown(hwnd, wparam, lparam);
 			break;
 		case WM_MOUSEWHEEL:
 			return ListWindowOnMouseWheel(hwnd, (short)HIWORD(wparam));
@@ -206,7 +193,7 @@ LRESULT CALLBACK ListChildFileProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lpara
 			InvalidateRect(hwnd, NULL, FALSE);
 			break;
 		case WM_LBUTTONDBLCLK:
-			MessageBox(hwnd, "Double click - left", "List Message",0);
+			MessageBox(hwnd, "Double clicking will open up MPEG and NAV", "List Message",0);
 			return 0;
 			break;
 		case WM_VSCROLL:
@@ -579,6 +566,68 @@ long ListWindowOnMouseWheel(HWND hwnd, short nDelta)
 
 	return 0;
 }
+
+int ListWindowHandleKeydown(HWND hwnd, WPARAM wparam, LPARAM lparam)
+{
+	LISTWINDOW_INFO *lpListWindowInfo;
+
+	int oldfirstline;
+	int oldselectedline;
+
+	lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
+
+	oldfirstline=lpListWindowInfo->firstLine;
+	oldselectedline=lpListWindowInfo->selectedLine;
+
+	switch (wparam)	{
+		case VK_DOWN:
+			lpListWindowInfo->selectedLine++;
+			if (lpListWindowInfo->selectedLine>=lpListWindowInfo->directoryInfo.numberOfFiles)
+				lpListWindowInfo->selectedLine=lpListWindowInfo->directoryInfo.numberOfFiles-1;
+			break;
+		case VK_UP:
+			lpListWindowInfo->selectedLine--;
+			if (lpListWindowInfo->selectedLine<0)
+				lpListWindowInfo->selectedLine=0;
+			break;
+		case VK_NEXT:
+			lpListWindowInfo->selectedLine+=lpListWindowInfo->fullyDisplayedLines;
+			if (lpListWindowInfo->selectedLine>=lpListWindowInfo->directoryInfo.numberOfFiles)
+				lpListWindowInfo->selectedLine=lpListWindowInfo->directoryInfo.numberOfFiles-1;
+			break;
+		case VK_PRIOR:	//Page up
+			lpListWindowInfo->selectedLine-=lpListWindowInfo->fullyDisplayedLines;
+			if (lpListWindowInfo->selectedLine<0)
+				lpListWindowInfo->selectedLine=0;
+			break;
+		case VK_HOME:	//Page up
+			lpListWindowInfo->selectedLine=0;
+			break;
+		case VK_END:
+			lpListWindowInfo->selectedLine=lpListWindowInfo->directoryInfo.numberOfFiles-1;
+		}
+
+
+		//For every key press
+		//If the selected line is too far up, then move first line
+		if (lpListWindowInfo->selectedLine < lpListWindowInfo->firstLine)
+			lpListWindowInfo->firstLine = lpListWindowInfo->selectedLine;
+			//If not too far up, check it's not too far down, if so, move first display
+		else if (lpListWindowInfo->selectedLine >= lpListWindowInfo->fullyDisplayedLines + lpListWindowInfo->firstLine-1)
+			lpListWindowInfo->firstLine = lpListWindowInfo->selectedLine-lpListWindowInfo->fullyDisplayedLines+1;
+
+		//Redraw the whole thing if the firstline has changed
+		if (oldfirstline!=lpListWindowInfo->firstLine)
+			InvalidateRect(lpListWindowInfo->hwndFiles, NULL, FALSE);
+
+		//Redraw just the affected blocks if not
+		if (oldselectedline!=lpListWindowInfo->selectedLine)
+			InvalidateRect(lpListWindowInfo->hwndFiles, NULL, FALSE);	//need to fix
+
+	return 0;
+}
+
+
 
 
 int SetListDirectory(DIRECTORY_INFO *lpDirectoryInfo, char *directorypath)

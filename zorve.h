@@ -1,8 +1,14 @@
 #include <windows.h>
 #include <windowsx.h>
 
+#define ZFT_UNKNOWN 0
+#define ZFT_INFO 1
+#define ZFT_MPEGTS 2
+#define ZFT_NAV 3
 
 #define Int32x32To64(a, b) ((LONGLONG)((LONG)(a)) * (LONGLONG)((LONG)(b)))
+
+int IndentifyFileType(char *filename);
 
 void UnixTimeToFileTime(long unixtime, LPFILETIME pft);
 void ModJulianTimeToFileTime(int juliantime, LPFILETIME pft);
@@ -23,5 +29,7 @@ void ZorveSetHwndList(HWND hwnd);
 
 #define RGB_ZINNY_WHITE RGB(0xFF, 0xFF, 0xFF)
 #define RGB_ZINNY_BRIGHTBLUE RGB(0x54, 0x9C, 0xF6)
-//RGB(0x57, 0xA2, 0xFF)
 
+#define RGB_ZINNY_REDALERT RGB(0xA2, 0x0E, 0x06)
+#define RGB_ZINNY_ORANGEALERT RGB(0xDE,0x88,0x0D)
+#define RGB_ZINNY_GREENALERT RGB(0x00,0x6F,0x10)
