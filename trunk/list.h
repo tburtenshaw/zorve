@@ -76,6 +76,7 @@ LRESULT CALLBACK ListChildFileProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lPara
 int PaintListFileWindow(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo);
 int PaintListFolderWindow(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo);
 int ListWindowHandleVScroll(HWND hwnd, WPARAM wparam, LPARAM lparam);
+int ListWindowHandleKeydown(HWND hwnd, WPARAM wparam, LPARAM lparam);
 long ListWindowOnMouseWheel(HWND hwnd, short nDelta);
 
 //File stuff

@@ -33,4 +33,36 @@ LRESULT CALLBACK ChildWndNavProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam)
 	return DefMDIChildProc(hwnd, msg, wparam, lparam);
 }
 
+HWND NavWindowCreateOrShow(HWND hwnd, HWND hwndChild, HINSTANCE hInst)
+{
+	if (IsWindow(hwnd))	{
+		ShowWindow(hwnd, SW_SHOW);
+		return hwnd;
+	}
+
+	return NavWindowCreate(hwndChild, hInst);
+}
+
+HWND NavWindowCreate(HWND hwndMDIClient, HINSTANCE hInst)
+{
+	HWND  hwndChild;
+	MDICREATESTRUCT mcs;
+
+	mcs.szClass = "NavWndClass";      // window class name
+	mcs.szTitle = "MPEG Navigation/Timing";             // window title
+	mcs.hOwner  = hInst;            // owner
+	mcs.x       = 500;
+	mcs.y       = 350;
+	mcs.cx      = 490;    // width
+	mcs.cy      = 320;    // height
+	mcs.style   = WS_CLIPCHILDREN|WS_CHILD;                // window style
+	mcs.lParam  = 0;                // lparam
+
+	hwndChild = (HWND) SendMessage(hwndMDIClient, WM_MDICREATE, 0, (LPARAM)(LPMDICREATESTRUCT) &mcs);
+
+	if (hwndChild != NULL)
+		ShowWindow(hwndChild, SW_SHOW);
+
+	return hwndChild;
+}
 

@@ -108,6 +108,27 @@ int  InfoWindowLoadFile(HWND hwnd, char *filename)
 	SetFilePointer(infoFile, 0x02a8, NULL, FILE_BEGIN);
 	ReadFile(infoFile, &infoFileStruct->duration, 4, &n, NULL);
 
+	//Read the duplicates at 0x0a00
+	//DUP Supplementary time and date
+	SetFilePointer(infoFile, 0x0a88, NULL, FILE_BEGIN);
+	ReadFile(infoFile, &infoFileStruct->dup_modjulianday, 2, &n, NULL);
+	infoFileStruct->dup_modjulianday=swap_endian_word(infoFileStruct->dup_modjulianday);
+	//DUP then the hour and minute
+	ReadFile(infoFile, &infoFileStruct->dup_decimalbyteHour, 1, &n, NULL);
+	ReadFile(infoFile, &infoFileStruct->dup_decimalbyteMinute, 1, &n, NULL);
+	infoFileStruct->dup_decimalbyteHour=(infoFileStruct->dup_decimalbyteHour & 0x0F) + ((infoFileStruct->dup_decimalbyteHour & 0xF0)/16)*10;
+	infoFileStruct->dup_decimalbyteMinute=(infoFileStruct->dup_decimalbyteMinute & 0x0F) + ((infoFileStruct->dup_decimalbyteMinute & 0xF0)/16)*10;
+	//DUP time, size and duration (second copy)
+	SetFilePointer(infoFile, 0x0a94, NULL, FILE_BEGIN);
+	ReadFile(infoFile, &infoFileStruct->dup_unixtime, 4, &n, NULL);
+	SetFilePointer(infoFile, 0x0aa0, NULL, FILE_BEGIN);
+	ReadFile(infoFile, &infoFileStruct->dup_filesize, 4, &n, NULL);
+	SetFilePointer(infoFile, 0x0aa8, NULL, FILE_BEGIN);
+	ReadFile(infoFile, &infoFileStruct->dup_duration, 4, &n, NULL);
+
+
+
+
 	//Read the associated MPEG
 	SetFilePointer(infoFile, 0x0c04, NULL, FILE_BEGIN);
 	ReadFile(infoFile, &infoFileStruct->assocMpeg, 256, &n, NULL);

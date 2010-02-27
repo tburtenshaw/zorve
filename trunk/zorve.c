@@ -197,8 +197,11 @@ void MainWndProc_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
 
 		case IDM_OPEN:
 			result = GetFileName(openfilename,sizeof(openfilename));
+			if (!result)
+				return;
 
-			if (result)	{
+			result = IndentifyFileType(openfilename);
+			if (result==ZFT_INFO)	{
 				//This loads the infofile after popping up (or making) the infowindow
 				hwndInfo = InfoWindowCreateOrShow(hwndInfo, hwndMDIClient, hInstProgram);
 				InfoWindowLoadFile(hwndInfo, &openfilename[0]);
@@ -207,7 +210,6 @@ void MainWndProc_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
 				if (!(IsWindow(hwndList)))	{
 					hwndList = ListWindowCreateOrShow(hwndList, hwndMDIClient, hInstProgram);
 				}
-
 
 				lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(hwndList, GWL_USERDATA);
 				lpDirectoryInfo=&lpListWindowInfo->directoryInfo;
@@ -223,7 +225,20 @@ void MainWndProc_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
 
 				InvalidateRect(lpListWindowInfo->hwndFolder, NULL, FALSE);
 				InvalidateRect(lpListWindowInfo->hwndFiles, NULL, FALSE);
+				return;
 			}
+			if (result==ZFT_MPEGTS)	{
+				hwndMpeg= MpegWindowCreateOrShow(hwndMpeg, hwndMDIClient, hInstProgram);
+				MpegWindowLoadFile(hwndMpeg, openfilename);
+				return;
+			}
+			if (result==ZFT_NAV)	{
+				hwndNav= NavWindowCreateOrShow(hwndNav, hwndMDIClient, hInstProgram);
+				return;
+			}
+
+			MessageBox(hwnd, "Zorve was unable to detect the type of file.", "Open file", MB_ICONEXCLAMATION|MB_OK);
+
 			break;
 		case IDM_WINDOWTILE:
 			SendMessage(hwndMDIClient,WM_MDITILE,0,0);
@@ -568,4 +583,70 @@ char * ReturnChannelNameFromPID(int pid)
 
 	return NULL;
 
+}
+
+
+int IndentifyFileType(char *filename)
+{
+
+	HANDLE hFile;
+	LARGE_INTEGER filesize;
+	int result;
+	long n;
+
+	long magic=0;
+	unsigned int navEight_int=0;
+	long navZero_long=0;
+	long mpegSyncByte=0;
+
+	hFile=CreateFile(filename, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL|FILE_FLAG_RANDOM_ACCESS, NULL);
+
+	//If we could load the file, then we can't tell what it is
+	if (!hFile) return 0;
+
+	GetFileSizeEx(hFile, &filesize);
+
+	//if it's 4096 bytes, then check if it's an info file
+	if ((filesize.LowPart==4096) && (filesize.HighPart==0))	{
+		ReadFile(hFile, &magic, 4, &n, NULL);
+		if (magic==0x50800)	{
+			CloseHandle(hFile);
+			return ZFT_INFO;
+		}
+	}
+
+
+	//Return if file too small to be nav (or mpeg)
+	if ((filesize.HighPart==0) && (filesize.LowPart<64))	{	//we're too small to be even a single line nav
+		CloseHandle(hFile);
+		return ZFT_UNKNOWN;
+	}
+
+	//Try to detect if it's a navigation file
+	if (!(filesize.LowPart % 0x20))	{//if we accept it, it needs to be divisible by 64
+		SetFilePointer(hFile, 0x06, NULL, FILE_BEGIN);
+		result = ReadFile(hFile, &navEight_int, 2, &n, NULL);
+		result = ReadFile(hFile, &navZero_long, 4, &n, NULL);
+		if ((navEight_int==8)&&(navZero_long==0))	{
+			CloseHandle(hFile);
+			return ZFT_NAV;
+		}
+	}
+
+	//Return if too small to be an MPEG (we detect by reading 5 packets of 188).
+	if ((filesize.HighPart==0) && (filesize.LowPart<940))	{	//we're too small to be even a single line nav
+		CloseHandle(hFile);
+		return ZFT_UNKNOWN;
+	}
+
+	if (MpegTSFindSyncByte(hFile, &mpegSyncByte))	{
+		CloseHandle(hFile);
+		return ZFT_MPEGTS;
+	}
+
+
+
+	CloseHandle(hFile);
+
+	return ZFT_UNKNOWN;	//if returns 0, then we don't know
 }
