@@ -271,6 +271,7 @@ void PaintInfoWindow(HWND hwnd)
 	RECT clientRect;
 	RECT textRect;
 
+	HFONT hSmallFont;
 	TEXTMETRIC textMetric;
 	SIZE sizeTextExtent;
 	char outputText[255];
@@ -289,6 +290,8 @@ void PaintInfoWindow(HWND hwnd)
 
 	HICON mpegIcon;
 	HICON navIcon;
+	HBRUSH hBrush;	//background colour for icons
+
 
 
 	infoFile=(INFOFILE_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
@@ -296,10 +299,26 @@ void PaintInfoWindow(HWND hwnd)
 	GetClientRect(hwnd, &clientRect);
 
 	hdc = BeginPaint(hwnd, &psPaint);
+
+	hSmallFont = CreateFont(
+				MulDiv(10, GetDeviceCaps(hdc, LOGPIXELSY), 72),
+				0,0,0,FW_NORMAL,
+				FALSE,FALSE,FALSE,
+				DEFAULT_CHARSET,OUT_OUTLINE_PRECIS,
+                CLIP_DEFAULT_PRECIS,NONANTIALIASED_QUALITY, VARIABLE_PITCH|FF_SWISS,"MS Shell Dlg");
+	SelectObject(hdc,hSmallFont);
+
+
+
+
 	SetBkColor(hdc, RGB_ZINNY_MIDPURPLE);
 
-	//Blank our canvas
-	ExtTextOut(hdc, 0,0,ETO_OPAQUE, &clientRect, infoFile->filename,strlen(infoFile->filename), NULL);
+
+	y=0;
+	//Filename
+	textRect.left=0; textRect.right=clientRect.right;
+	textRect.top=0; textRect.bottom=24;
+	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, infoFile->filename,strlen(infoFile->filename), NULL);
 
 	y=24;
 
@@ -308,75 +327,115 @@ void PaintInfoWindow(HWND hwnd)
 	GetTextExtentPoint32(hdc, "Description:",12,&sizeTextExtent);
 	xEditColumn=sizeTextExtent.cx+margin;
 
-	textRect.left=margin; textRect.right=xEditColumn;
-	textRect.top=y; textRect.bottom=y+height;
+	textRect.left=0; textRect.right=xEditColumn+margin;
+	textRect.top=y; textRect.bottom=y+height+4;
 
 	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, "Recording:", 10, NULL);
+	SendMessage(infoFile->windowInfo.editHwndRecording, WM_SETFONT, (WPARAM)hSmallFont, 0);
 	MoveWindow(infoFile->windowInfo.editHwndRecording, xEditColumn+margin, y, (clientRect.right-clientRect.left)-xEditColumn-margin-margin, height+4, TRUE);
-
+	textRect.left=clientRect.right-margin; textRect.right=clientRect.right;
+	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, NULL, 0, NULL);	//rightmarginfill
+	textRect.top=y+height+4; textRect.bottom=y+height+4+margin;
+	textRect.left=clientRect.left; textRect.right=clientRect.right;
+	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, NULL, 0, NULL);	//lowermarginfill
 	y+=height+4+margin;
 
-	textRect.left=margin; textRect.right=xEditColumn;
-	textRect.top=y; textRect.bottom=y+height;
+	textRect.left=0; textRect.right=xEditColumn+margin;
+	textRect.top=y; textRect.bottom=y+height*4+4;
 
 	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, "Description:", 12, NULL);
+	SendMessage(infoFile->windowInfo.editHwndDescription, WM_SETFONT, (WPARAM)hSmallFont, 0);
 	MoveWindow(infoFile->windowInfo.editHwndDescription, xEditColumn+margin, y, (clientRect.right-clientRect.left)-xEditColumn-margin-margin,height*4+4, TRUE);
+	textRect.left=clientRect.right-margin; textRect.right=clientRect.right;
+	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, NULL, 0, NULL);	//rightmarginfill
+	textRect.top=y+height+4; textRect.bottom=y+height*4+4+margin;
+	textRect.left=clientRect.left; textRect.right=clientRect.right;
+	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, NULL, 0, NULL);	//lowermarginfill
 	y+=height*4+4 +margin;
 
-	textRect.left=margin; textRect.right=clientRect.right;
-	textRect.top=y; textRect.bottom=y+height;
+	textRect.left=0; textRect.right=clientRect.right;
+	textRect.top=y; textRect.bottom=y+height+margin;
 	ModJulianTimeToFileTime(infoFile->modjulianday, &filetime);
 	FileTimeToSystemTime(&filetime, &systemtime);
 	sprintf(outputText, "Julian Date: %i/%i/%i, Bytewise Time: %02i:%02i", systemtime.wDay, systemtime.wMonth, systemtime.wYear, infoFile->decimalbyteHour, infoFile->decimalbyteMinute);
 	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, outputText, strlen(outputText), NULL);
 	y+=height+margin;
 
-	textRect.left=margin; textRect.right=clientRect.right;
-	textRect.top=y; textRect.bottom=y+height;
+	textRect.left=0; textRect.right=clientRect.right;
+	textRect.top=y; textRect.bottom=y+height+margin;
 	UnixTimeToFileTime(infoFile->unixtime, &filetime);
 	FileTimeToSystemTime(&filetime, &systemtime);
 	sprintf(outputText, "UTC Date/Time: %i/%i/%i, %02i:%02i:%02i", systemtime.wDay, systemtime.wMonth, systemtime.wYear, systemtime.wHour, systemtime.wMinute, systemtime.wSecond);
 	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, outputText, strlen(outputText), NULL);
 	y+=height+margin;
 
-	textRect.left=margin; textRect.right=clientRect.right;
-	textRect.top=y; textRect.bottom=y+height;
+	textRect.left=0; textRect.right=clientRect.right;
+	textRect.top=y; textRect.bottom=y+height+margin;
 	sprintf(outputText, "First PID: 0x%03x (%s) ", infoFile->PID[0], ReturnChannelNameFromPID(infoFile->PID[0]));
 	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, outputText, strlen(outputText), NULL);
 	y+=height+margin;
 
 
 	hInst=(HINSTANCE)GetWindowLong(hwnd, GWL_HINSTANCE);
+	hBrush=CreateSolidBrush(RGB_ZINNY_MIDPURPLE);
 
 	mpegIcon = LoadIcon(hInst, MAKEINTRESOURCE(IDI_MPEGTS));
-	DrawIconEx(hdc, margin, y, mpegIcon, 16,16, 0, NULL, DI_NORMAL);
-	textRect.left=margin+16+margin; textRect.right=clientRect.right;
-	textRect.top=y; textRect.bottom=y+height;
+	DrawIconEx(hdc, margin, y, mpegIcon, 16,16, 0, hBrush, DI_NORMAL);
+	textRect.left=margin+16; textRect.right=clientRect.right;
+	textRect.top=y; textRect.bottom=y+MAX(height,16)+margin;
 	sprintf(outputText, " %s ", infoFile->assocMpeg);
 	ExtTextOut(hdc, margin+16+margin, y, ETO_OPAQUE, &textRect, outputText, strlen(outputText), NULL);
-	y+=height+margin;
+
+	textRect.left=0; textRect.right=margin;
+	textRect.top=y; textRect.bottom=y+MAX(height,16)+margin;
+	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, NULL, 0, NULL);	//leftmarginfill
+	textRect.left=margin; textRect.right=margin+16;
+	textRect.top=y+16; textRect.bottom=y+MAX(height,16)+margin;
+	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, NULL, 0, NULL);	//bottommarginfill
+
+	y+=MAX(height,16)+margin;
 
 
 	navIcon = LoadIcon(hInst, MAKEINTRESOURCE(IDI_NAV));
-	DrawIconEx(hdc, margin, y, navIcon, 16,16, 0, NULL, DI_NORMAL);
+	DrawIconEx(hdc, margin, y, navIcon, 16,16, 0, hBrush, DI_NORMAL);
 	textRect.left=margin+16; textRect.right=clientRect.right;
-	textRect.top=y; textRect.bottom=y+height;
+	textRect.top=y; textRect.bottom=y+MAX(height,16)+margin;
 	sprintf(outputText, " %s ", infoFile->assocNav);
 	ExtTextOut(hdc, margin+16+margin, y, ETO_OPAQUE, &textRect, outputText, strlen(outputText), NULL);
-	y+=height+margin;
+	textRect.left=0; textRect.right=margin;
+	textRect.top=y; textRect.bottom=y+MAX(height,16)+margin;
+	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, NULL, 0, NULL);	//leftmarginfill
+	textRect.left=margin; textRect.right=margin+16;
+	textRect.top=y+16; textRect.bottom=y+MAX(height,16)+margin;
+	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, NULL, 0, NULL);	//bottommarginfill
+	y+=MAX(height,16)+margin;
 
 
+	DeleteObject(hBrush);
+
+
+
+	//Adjust the position of buttons
 	buttonheight=height+4+4;
-	buttonwidth=140;
+	buttonwidth=100;
 	xbuttonpos=clientRect.right-margin-buttonwidth;
-	y=clientRect.bottom-margin-buttonheight;
 
-	MoveWindow(infoFile->windowInfo.buttonHwndRevert, xbuttonpos, y, buttonwidth, buttonheight, TRUE);
+	SendMessage(infoFile->windowInfo.buttonHwndRevert, WM_SETFONT, (WPARAM)hSmallFont, 0);
+	MoveWindow(infoFile->windowInfo.buttonHwndRevert, xbuttonpos, clientRect.bottom-margin-buttonheight, buttonwidth, buttonheight, TRUE);
 	InvalidateRect(infoFile->windowInfo.buttonHwndRevert, NULL, TRUE);
 
 	xbuttonpos=clientRect.right-margin-buttonwidth-margin-buttonwidth;
-	MoveWindow(infoFile->windowInfo.buttonHwndSaveAll, xbuttonpos, y, buttonwidth, buttonheight, TRUE);
+	SendMessage(infoFile->windowInfo.buttonHwndSaveAll, WM_SETFONT, (WPARAM)hSmallFont, 0);
+	MoveWindow(infoFile->windowInfo.buttonHwndSaveAll, xbuttonpos, clientRect.bottom-margin-buttonheight, buttonwidth, buttonheight, TRUE);
 	InvalidateRect(infoFile->windowInfo.buttonHwndSaveAll, NULL, TRUE);
+
+	//Fill the bottom of the window, after the last line
+	textRect.top=y; textRect.bottom=clientRect.bottom;
+	textRect.left=clientRect.left; textRect.right=clientRect.right;
+	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, NULL, 0, NULL);	//lowermarginfill
+
+
+
 
 	EndPaint(hwnd, &psPaint);
 

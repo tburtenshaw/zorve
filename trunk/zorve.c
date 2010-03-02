@@ -234,6 +234,7 @@ void MainWndProc_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
 			}
 			if (result==ZFT_NAV)	{
 				hwndNav= NavWindowCreateOrShow(hwndNav, hwndMDIClient, hInstProgram);
+				NavWindowLoadFile(hwndNav, openfilename);
 				return;
 			}
 

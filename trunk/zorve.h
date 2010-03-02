@@ -7,6 +7,8 @@
 #define ZFT_NAV 3
 
 #define Int32x32To64(a, b) ((LONGLONG)((LONG)(a)) * (LONGLONG)((LONG)(b)))
+#define MAX(a,b) (a > b ? a : b)
+#define MIN(a,b) (a < b ? a : b)
 
 int IndentifyFileType(char *filename);
 
@@ -27,6 +29,7 @@ void ZorveSetHwndList(HWND hwnd);
 #define RGB_ZINNY_MIDPURPLE RGB(0xBE, 0xBE, 0xDC)
 #define RGB_ZINNY_HIGHPURPLE RGB(0xCC, 0xCC, 0xED)
 
+#define RGB_ZINNY_BLACK RGB(0x00, 0x00, 0x00)
 #define RGB_ZINNY_WHITE RGB(0xFF, 0xFF, 0xFF)
 #define RGB_ZINNY_BRIGHTBLUE RGB(0x54, 0x9C, 0xF6)
 

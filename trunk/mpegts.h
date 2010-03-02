@@ -4,14 +4,14 @@
 typedef struct sMpegWindowInfo MPEGWINDOW_INFO;
 typedef struct sMpegFileInfo MPEGFILE_INFO;
 
-struct sMpegWindowInfo	{
-	MPEGFILE_INFO fileInfo;
-};
-
 struct sMpegFileInfo	{
 	HANDLE	hMpegFile;
 	unsigned long filesize;
 	char filename[MAX_PATH];
+};
+
+struct sMpegWindowInfo	{
+	MPEGFILE_INFO fileInfo;
 };
 
 int MpegWindowRegisterWndClass(HINSTANCE hInst);
