@@ -114,7 +114,7 @@ LRESULT CALLBACK ChildWndListProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 			SetWindowLong(hwnd, GWL_USERDATA, (long)lpListWindowInfo); //set the custom long of the window to remember it
 			memset(lpListWindowInfo, 0, sizeof(LISTWINDOW_INFO));	//make sure everything set to zero
 
-			lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
+			//lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
 
 			lpDirectoryInfo=&lpListWindowInfo->directoryInfo;	//the directory pointer is set to the location in the windowinfostruct
 			lpDirectoryInfo->parentListWindowInfo = lpListWindowInfo;
