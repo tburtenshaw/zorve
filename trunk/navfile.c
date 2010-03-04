@@ -67,10 +67,9 @@ LRESULT CALLBACK ChildWndNavProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam)
 			break;
 		case WM_SIZE:
 			navWindowInfo=(NAVWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
-
 			GetClientRect(hwnd, &clientRect);
-
 			MoveWindow(navWindowInfo->hwndRecordList, 5, navWindowInfo->headerHeight+5, clientRect.right-clientRect.left-10,clientRect.bottom-10-navWindowInfo->headerHeight, TRUE);
+			InvalidateRect(hwnd, NULL, FALSE);
 			break;
 		case WM_PAINT:
 			NavRecordHeaderPaint(hwnd);
@@ -119,9 +118,13 @@ HWND NavWindowCreate(HWND hwndMDIClient, HINSTANCE hInst)
 //It handles most of the thinking.
 LRESULT CALLBACK NavRecordListViewFileProc(HWND hwnd,UINT msg, WPARAM wparam,LPARAM lparam)
 {
+	NAVWINDOW_INFO *navWindowInfo;
+
 	switch(msg) {
 		case WM_PAINT:
 			NavRecordListViewPaint(hwnd);
+			navWindowInfo=(NAVWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);	//get the point to window info
+			NavScrollUpdate(hwnd, navWindowInfo);
 			break;
 		case WM_VSCROLL:
 			NavHandleVScroll(hwnd, wparam, lparam);
@@ -142,6 +145,7 @@ int NavRecordListViewPaint(HWND hwnd)
 	RECT clientRect;
 	RECT outputRect;
 
+	HFONT hSmallFont;
 	TEXTMETRIC textMetric;
 	int heightFont;
 
@@ -149,13 +153,48 @@ int NavRecordListViewPaint(HWND hwnd)
 	char buffer[255];
 
 	int y;
-	int i;
+	int i;	//row counter
+	int c;	//column counter
 
 	navWindowInfo=(NAVWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);	//get the point to window info
+
+	navWindowInfo->widthColumn[0]=100;
+	navWindowInfo->widthColumn[1]=70;
+	navWindowInfo->widthColumn[2]=60;
+	navWindowInfo->widthColumn[3]=70;
+	navWindowInfo->widthColumn[4]=0;
+	navWindowInfo->widthColumn[5]=0;
+	navWindowInfo->widthColumn[6]=100;
+	navWindowInfo->widthColumn[7]=110;
+	navWindowInfo->widthColumn[8]=80;
+	navWindowInfo->widthColumn[9]=0;
+	navWindowInfo->widthColumn[10]=80;
+	navWindowInfo->widthColumn[11]=0;
+	navWindowInfo->widthColumn[12]=80;
+	navWindowInfo->widthColumn[13]=0;
+	navWindowInfo->widthColumn[14]=0;
+	navWindowInfo->widthColumn[15]=0;
+	navWindowInfo->widthColumn[16]=0;
+	navWindowInfo->widthColumn[17]=0;
+	navWindowInfo->widthColumn[18]=0;
+	navWindowInfo->widthColumn[19]=0;
+	navWindowInfo->widthColumn[20]=0;
+	int columnStart=0;
 
 
 	GetClientRect(hwnd, &clientRect);
 	hdc=BeginPaint(hwnd, &ps);
+
+	hSmallFont = CreateFont(
+				MulDiv(10, GetDeviceCaps(hdc, LOGPIXELSY), 72),
+				0,0,0,FW_NORMAL,
+				FALSE,FALSE,FALSE,
+				DEFAULT_CHARSET,OUT_OUTLINE_PRECIS,
+                CLIP_DEFAULT_PRECIS,NONANTIALIASED_QUALITY, VARIABLE_PITCH|FF_SWISS,"MS Shell Dlg");
+	SelectObject(hdc,hSmallFont);
+
+
+
 
 	GetTextMetrics(hdc, &textMetric);
 	heightFont= textMetric.tmHeight;
@@ -167,17 +206,81 @@ int NavRecordListViewPaint(HWND hwnd)
 	numberOfLinesToDraw=MIN(navWindowInfo->numDisplayedLines+1, navWindowInfo->fileInfo.numRecords - navWindowInfo->firstDisplayedRecord);
 
 	for (i=0;i<numberOfLinesToDraw;i++)	{
-	sprintf(buffer, "%i (0x%x), s1:%u l6:%u l7:%u   ",navWindowInfo->firstDisplayedRecord+i, (navWindowInfo->firstDisplayedRecord+i)*sizeof(NAV_RECORD),
+
+/*	sprintf(buffer, "%i (0x%x), s1:%u l6:%u l7:%u  s8:%u",navWindowInfo->firstDisplayedRecord+i, (navWindowInfo->firstDisplayedRecord+i)*sizeof(NAV_RECORD),
     	navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s1,
     	navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l6,
-    	navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l7
+    	navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l7,
+    	navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s8
 		);
-	SetBkColor(hdc, RGB_ZINNY_WHITE);
-	outputRect.left=clientRect.left;
-	outputRect.right=clientRect.right;
-	outputRect.top=y;
-	outputRect.bottom=y+heightFont;
-	ExtTextOut(hdc, 0,y,ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
+*/
+		SetBkColor(hdc, RGB_ZINNY_WHITE);
+		outputRect.top=y;
+		outputRect.bottom=y+heightFont;
+		columnStart=0;
+
+		for (c=0;c<21;c++)	{
+			outputRect.left=columnStart;
+			outputRect.right=columnStart+navWindowInfo->widthColumn[c];
+
+			if	(navWindowInfo->widthColumn[c] > 0)	{
+				switch (c)	{
+					case 0:
+						sprintf(buffer, "%i (0x%x)",navWindowInfo->firstDisplayedRecord+i, (navWindowInfo->firstDisplayedRecord+i)*sizeof(NAV_RECORD));
+						break;
+					case 1:
+						sprintf(buffer, "s1:%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s1);
+						break;
+					case 2:
+						sprintf(buffer, "tb2:%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].twobytes2);
+						break;
+					case 3:
+						sprintf(buffer, "s3:%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s3);
+						break;
+					case 4:
+						sprintf(buffer, "s4:%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s4);
+						break;
+					case 5:
+						sprintf(buffer, "l5:%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l5zero);
+						break;
+					case 6:
+						sprintf(buffer, "l6:%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l6);
+						break;
+					case 7:
+						sprintf(buffer, "l7:%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l7);
+						break;
+					case 8:
+						sprintf(buffer, "s8:%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s8);
+						break;
+					case 9:
+						sprintf(buffer, "s9:%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s9zero);
+						break;
+					case 10:
+						sprintf(buffer, "l10:%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l10);
+						break;
+					case 11:
+						sprintf(buffer, "l11:%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l11zero);
+						break;
+					case 12:
+						sprintf(buffer, "l12:%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l12);
+						break;
+					default:
+						buffer[0]=0;
+						break;
+				}
+
+
+				ExtTextOut(hdc, columnStart,y,ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
+				columnStart+=navWindowInfo->widthColumn[c];
+			}
+		}
+		outputRect.left=columnStart;
+		outputRect.right=clientRect.right;
+
+		ExtTextOut(hdc, columnStart,y,ETO_OPAQUE, &outputRect, NULL, 0, NULL);
+
+
+
 	y+=heightFont;
 
 
@@ -214,13 +317,30 @@ int NavRecordHeaderPaint(HWND hwnd)
 	NAVWINDOW_INFO *navWindowInfo;
 	char buffer[255];
 
+	TEXTMETRIC textMetric;
+	int heightFont;
+	int y;
+
 	navWindowInfo=(NAVWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
 
 
 	GetClientRect(hwnd, &clientRect);
 	hdc=BeginPaint(hwnd, &ps);
 
-	ExtTextOut(hdc,	0,0,ETO_OPAQUE, &clientRect, navWindowInfo->fileInfo.filename,strlen(navWindowInfo->fileInfo.filename), NULL);
+	GetTextMetrics(hdc, &textMetric);
+	heightFont= textMetric.tmHeight;
+
+	y=0;
+	ExtTextOut(hdc,	0,y,ETO_OPAQUE, &clientRect, navWindowInfo->fileInfo.filename,strlen(navWindowInfo->fileInfo.filename), NULL);
+	y+=heightFont;
+
+	sprintf(buffer, "Size: %u bytes", navWindowInfo->fileInfo.filesize);
+	ExtTextOut(hdc,	0,y,ETO_OPAQUE, NULL, buffer, strlen(buffer), NULL);
+	y+=heightFont;
+
+	sprintf(buffer, "Records: %u", navWindowInfo->fileInfo.numRecords);
+	ExtTextOut(hdc,	0,y,ETO_OPAQUE, NULL, buffer, strlen(buffer), NULL);
+	y+=heightFont;
 
 
 	EndPaint(hwnd, &ps);
