@@ -81,6 +81,9 @@ struct sNavWindowInfo	{
 
 	NAV_RECORD displayRecord[1024];	//I want to load 1024, starting record nearest 512
 
+
+	int widthColumn[24];	//0 is the key, 1 is s1
+
 };
 
 int NavWindowRegisterWndClass(HINSTANCE hInst);
