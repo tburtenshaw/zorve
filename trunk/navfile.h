@@ -73,7 +73,10 @@ struct sNavWindowInfo	{
 	NAVFILE_INFO fileInfo;
 
 	HWND hwndRecordList;
+	HWND hwndRecordListHeader;
+
 	int headerHeight;
+	int listviewheaderHeight;
 
 	long firstDisplayedRecord;
 	long indexRecordBuffer;
@@ -83,20 +86,28 @@ struct sNavWindowInfo	{
 
 
 	int widthColumn[24];	//0 is the key, 1 is s1
+	char columnTitle[24][64];
 
 };
 
 int NavWindowRegisterWndClass(HINSTANCE hInst);
 LRESULT CALLBACK ChildWndNavProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam);
 LRESULT CALLBACK NavRecordListViewFileProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam);
+LRESULT CALLBACK NavRecordListViewHeaderProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam);
+
 
 HWND NavWindowCreateOrShow(HWND listHwnd, HWND hwndMDIClient, HINSTANCE hInst);
 HWND NavWindowCreate(HWND hwndMDIClient, HINSTANCE hInst);
 
+int	NavRecordListHeaderPaint(HWND hwnd);
 int NavRecordListViewPaint(HWND hwnd);
 int NavRecordHeaderPaint(HWND hwnd);
+
+void NavInitiateColumnWidths(NAVWINDOW_INFO * navWindowInfo);
+
 int NavHandleVScroll(HWND hwnd, WPARAM wparam, LPARAM lparam);
 int NavScrollUpdate(HWND hwnd, NAVWINDOW_INFO * navWindowInfo);
+long NavWindowOnMouseWheel(HWND hwnd, short nDelta);
 
 int ReadRecordsFromNavFile(NAVWINDOW_INFO *navWindowInfo, unsigned long offset, NAV_RECORD* ptrRecord, long numRecords);
 int NavWindowLoadFile(HWND hwnd, char *openfilename);
