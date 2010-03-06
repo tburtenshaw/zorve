@@ -136,6 +136,14 @@ LRESULT CALLBACK ChildWndListProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 			MoveWindow(lpListWindowInfo->hwndFiles,
 							0, lpListWindowInfo->heightFolderSelector,
 							clientRect.right-clientRect.left, clientRect.bottom-clientRect.top-lpListWindowInfo->heightFolderSelector, TRUE);
+
+			if (lpListWindowInfo->firstLine > (lpListWindowInfo->directoryInfo.numberOfFiles - lpListWindowInfo->fullyDisplayedLines))	{
+				lpListWindowInfo->firstLine = (lpListWindowInfo->directoryInfo.numberOfFiles - lpListWindowInfo->fullyDisplayedLines);
+				InvalidateRect(hwnd, NULL, FALSE);
+			}
+
+			ListScrollUpdate(lpListWindowInfo->hwndFiles, lpListWindowInfo);
+
 			break;
 		case WM_DESTROY:
 			lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
@@ -316,8 +324,6 @@ int PaintListFileWindow(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo)
 	FILETIME filetime;
 	SYSTEMTIME systemtime;
 
-	SCROLLINFO scrollInfo;
-
 	int smallcolumnwidth=80;
 	int dividerlinewidth=2;
 	int y=0;
@@ -476,6 +482,18 @@ int PaintListFileWindow(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo)
 	DeleteObject(hLargeFont);
 	EndPaint (hwnd, &psPaint);
 
+	ListScrollUpdate(hwnd, lpListWindowInfo);
+
+	return 0;
+}
+
+int ListScrollUpdate(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo)
+{
+	SCROLLINFO scrollInfo;
+	DIRECTORY_INFO *lpDirectoryInfo;
+
+	lpDirectoryInfo=&lpListWindowInfo->directoryInfo;
+
 	//Scrollbars
 	scrollInfo.cbSize = sizeof(SCROLLINFO);
 	scrollInfo.fMask = SIF_PAGE|SIF_POS|SIF_RANGE;
@@ -485,6 +503,7 @@ int PaintListFileWindow(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo)
 	scrollInfo.nPos=lpListWindowInfo->firstLine;
 
 	SetScrollInfo(hwnd, SB_VERT, &scrollInfo, TRUE);
+
 
 	return 0;
 }
@@ -626,8 +645,6 @@ int ListWindowHandleKeydown(HWND hwnd, WPARAM wparam, LPARAM lparam)
 
 	return 0;
 }
-
-
 
 
 int SetListDirectory(DIRECTORY_INFO *lpDirectoryInfo, char *directorypath)
