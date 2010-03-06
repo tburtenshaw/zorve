@@ -98,6 +98,9 @@ LRESULT CALLBACK ChildWndNavProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam)
 		case WM_MOUSEWHEEL:
 			return NavWindowOnMouseWheel(hwnd, (short)HIWORD(wparam));
 			break;
+		case WM_DESTROY:
+			NavWindowUnloadFile(hwnd);
+			break;
 		default:
 			return DefMDIChildProc(hwnd, msg, wparam, lparam);
 	}
@@ -174,15 +177,109 @@ LRESULT CALLBACK NavRecordListViewHeaderProc(HWND hwnd,UINT msg, WPARAM wparam,L
 {
 	NAVWINDOW_INFO *navWindowInfo;
 
+	int newSelectedColumn;
+	int c;
+	int x;
+
 	switch(msg) {
 		case WM_PAINT:
 			NavRecordListHeaderPaint(hwnd);
 			break;
+		case WM_MOUSEMOVE:
+			navWindowInfo=(NAVWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);
+
+			if (navWindowInfo->mousePushed)
+				navWindowInfo->mouseDragging=1;
+
+			if	(!navWindowInfo->mouseDragging)	{
+				newSelectedColumn = NavRecordListHeaderCheckAdjustBar(navWindowInfo, GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam));
+
+				if (newSelectedColumn!=navWindowInfo->movingColumn){
+					navWindowInfo->movingColumn=newSelectedColumn;
+				}
+					if	(newSelectedColumn>-1)
+						SetCursor(LoadCursor(NULL, IDC_SIZEWE));
+					else
+						SetCursor(LoadCursor(NULL, IDC_ARROW));
+			}	else	{	//if dragging
+				x=0;
+				for (c=0; c<navWindowInfo->movingColumn; c++)	{	//get the cumulative position
+					x+=navWindowInfo->widthColumn[c];
+				}
+					navWindowInfo->widthColumn[navWindowInfo->movingColumn]=MAX(GET_X_LPARAM(lparam)-x, 0);
+					InvalidateRect(navWindowInfo->hwndRecordList, NULL, FALSE);
+					InvalidateRect(navWindowInfo->hwndRecordListHeader, NULL, FALSE);
+			}
+
+			break;
+		case WM_LBUTTONDOWN:
+			navWindowInfo=(NAVWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);
+			navWindowInfo->movingColumn=NavRecordListHeaderCheckAdjustBar(navWindowInfo, GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam));
+			if (navWindowInfo->movingColumn>-1)	{
+				SetCapture(hwnd);
+				navWindowInfo->mousePushed=1;
+				SetCursor(LoadCursor(NULL, IDC_SIZEWE));
+			}
+
+			break;
+		case WM_LBUTTONUP:
+			navWindowInfo=(NAVWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);
+			if (navWindowInfo->mousePushed)	{
+				ReleaseCapture();
+				navWindowInfo->mousePushed=0;
+				navWindowInfo->mouseDragging=0;
+			}
+			break;
+		case WM_CONTEXTMENU:
+			NavWindowListHeaderHandleContextMenu(hwnd, wparam, lparam);
+			break;
+		case WM_COMMAND:
+			c= LOWORD(wparam);
+
+			if (c==IDM_LISTVIEWHEADERDEFAULT)	{
+				navWindowInfo=(NAVWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);
+				NavInitiateColumnWidths(navWindowInfo);
+				InvalidateRect(navWindowInfo->hwndRecordList, NULL, FALSE);
+				InvalidateRect(navWindowInfo->hwndRecordListHeader, NULL, FALSE);
+			}
+
+			if ((c>=100) && (c<121))	{
+				navWindowInfo=(NAVWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);
+				c-=100;
+
+				if (navWindowInfo->widthColumn[c])
+					navWindowInfo->widthColumn[c]=0;
+				else
+					navWindowInfo->widthColumn[c]=80;
+
+				InvalidateRect(navWindowInfo->hwndRecordList, NULL, FALSE);
+				InvalidateRect(navWindowInfo->hwndRecordListHeader, NULL, FALSE);
+			}
+
 		default:
 			return DefMDIChildProc(hwnd, msg, wparam, lparam);
 	}
 
 	return 0;
+}
+
+
+int NavRecordListHeaderCheckAdjustBar(NAVWINDOW_INFO * navWindowInfo, int x, int y)
+{
+	int c;
+
+	int columnx=0;
+
+	for (c=0;c<21;c++)	{
+		columnx+=navWindowInfo->widthColumn[c];
+		if ((x>columnx-4) && (x<columnx+4))
+			return c;
+
+	}
+
+
+//Returns the row to adjust, or -1 if none
+	return -1;
 }
 
 int	NavRecordListHeaderPaint(HWND hwnd)
@@ -193,6 +290,9 @@ int	NavRecordListHeaderPaint(HWND hwnd)
 	PAINTSTRUCT ps;
 	RECT clientRect;
 	RECT outputRect;
+
+	HFONT hSmallFont;
+	TEXTMETRIC textMetric;
 
 	int c;
 
@@ -206,6 +306,19 @@ int	NavRecordListHeaderPaint(HWND hwnd)
 
 	SetBkColor(hdc, RGB_ZINNY_DARKBLUE);
 	SetTextColor(hdc, RGB_ZINNY_WHITE);
+
+	hSmallFont = CreateFont(
+				MulDiv(10, GetDeviceCaps(hdc, LOGPIXELSY), 72),
+				0,0,0,FW_NORMAL,
+				FALSE,FALSE,FALSE,
+				DEFAULT_CHARSET,OUT_OUTLINE_PRECIS,
+                CLIP_DEFAULT_PRECIS,NONANTIALIASED_QUALITY, VARIABLE_PITCH|FF_SWISS,"MS Shell Dlg");
+	SelectObject(hdc,hSmallFont);
+
+
+	GetTextMetrics(hdc, &textMetric);
+	//heightFont= textMetric.tmHeight;
+
 
 	y=0;
 	x=clientRect.left;
@@ -281,9 +394,10 @@ int NavRecordListViewPaint(HWND hwnd)
 
 	numberOfLinesToDraw=MIN(navWindowInfo->numDisplayedLines+1, navWindowInfo->fileInfo.numRecords - navWindowInfo->firstDisplayedRecord);
 
+	SetTextColor(hdc, RGB_ZINNY_DARKBLUE);
 	for (i=0;i<numberOfLinesToDraw;i++)	{
 
-		SetBkColor(hdc, RGB_ZINNY_WHITE);
+		SetBkColor(hdc, RGB_ZINNY_MIDPURPLE);
 		outputRect.top=y;
 		outputRect.bottom=y+heightFont;
 		columnStart=0;
@@ -333,6 +447,31 @@ int NavRecordListViewPaint(HWND hwnd)
 					case 12:
 						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l12);
 						break;
+					case 13:
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s13);
+						break;
+					case 14:
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s14zero);
+						break;
+					case 15:
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l15zero);
+						break;
+					case 16:
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l16zero);
+						break;
+					case 17:
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l17zero);
+						break;
+					case 18:
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l18zero);
+						break;
+					case 19:
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l19zero);
+						break;
+					case 20:
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l20zero);
+						break;
+
 					default:
 						buffer[0]=0;
 						break;
@@ -357,13 +496,13 @@ int NavRecordListViewPaint(HWND hwnd)
 	outputRect.right=clientRect.right;
 	outputRect.top=y;
 	outputRect.bottom=y+1;
-	SetBkColor(hdc, RGB_ZINNY_BLACK);
+	SetBkColor(hdc, RGB_ZINNY_HIGHPURPLE);
 	ExtTextOut(hdc, 0,y,ETO_OPAQUE, &outputRect, NULL, 0, NULL);
 	y++;
 	}
 
 	if (y<clientRect.bottom)	{		//if we still have some space left at end of list
-		SetBkColor(hdc, RGB_ZINNY_WHITE);
+		SetBkColor(hdc, RGB_ZINNY_MIDPURPLE);
 		outputRect.left=clientRect.left;
 		outputRect.right=clientRect.right;
 		outputRect.top=y;
@@ -437,6 +576,7 @@ int NavRecordHeaderPaint(HWND hwnd)
 
 	NAVWINDOW_INFO *navWindowInfo;
 	char buffer[255];
+	HFONT hSmallFont;
 
 	TEXTMETRIC textMetric;
 	int heightFont;
@@ -448,8 +588,20 @@ int NavRecordHeaderPaint(HWND hwnd)
 	GetClientRect(hwnd, &clientRect);
 	hdc=BeginPaint(hwnd, &ps);
 
+	hSmallFont = CreateFont(
+				MulDiv(10, GetDeviceCaps(hdc, LOGPIXELSY), 72),
+				0,0,0,FW_NORMAL,
+				FALSE,FALSE,FALSE,
+				DEFAULT_CHARSET,OUT_OUTLINE_PRECIS,
+                CLIP_DEFAULT_PRECIS,NONANTIALIASED_QUALITY, VARIABLE_PITCH|FF_SWISS,"MS Shell Dlg");
+	SelectObject(hdc,hSmallFont);
+
 	GetTextMetrics(hdc, &textMetric);
 	heightFont= textMetric.tmHeight;
+
+	SetTextColor(hdc, RGB_ZINNY_DARKBLUE);
+	SetBkColor(hdc, RGB_ZINNY_MIDPURPLE);
+
 
 	y=0;
 	ExtTextOut(hdc,	0,y,ETO_OPAQUE, &clientRect, navWindowInfo->fileInfo.filename,strlen(navWindowInfo->fileInfo.filename), NULL);
@@ -647,4 +799,84 @@ int NavWindowLoadFile(HWND hwnd, char *openfilename)
 	UpdateBuffer(navWindowInfo);
 	return 0;
 
+}
+
+int NavWindowUnloadFile(HWND hwnd)
+{
+	NAVWINDOW_INFO *navWindowInfo;
+	navWindowInfo=(NAVWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
+
+	CloseHandle(navWindowInfo->fileInfo.hNavFile);
+
+	free(navWindowInfo);
+
+
+	return 0;
+}
+
+
+int NavWindowListHeaderHandleContextMenu(HWND hwnd, WPARAM wparam, LPARAM lparam)
+{
+	NAVWINDOW_INFO *navWindowInfo;
+	HMENU hMenu;
+	MENUITEMINFO menuItemInfo;
+	int index;
+
+	int x,y;
+	int c;
+
+	navWindowInfo=(NAVWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);
+
+	x=GET_X_LPARAM(lparam);
+	y=GET_Y_LPARAM(lparam);
+
+	hMenu = CreatePopupMenu();
+
+
+	memset(&menuItemInfo, 0, sizeof(MENUITEMINFO));
+
+	menuItemInfo.cbSize=sizeof(MENUITEMINFO);
+	menuItemInfo.fMask = MIIM_STRING|MIIM_STATE|MIIM_ID;
+	menuItemInfo.fType = MFT_STRING;
+
+	index=0;
+
+	//Default
+	menuItemInfo.dwTypeData="&Default";
+	menuItemInfo.cch = 8;
+	menuItemInfo.wID = IDM_LISTVIEWHEADERDEFAULT;
+	InsertMenuItem(hMenu, index, TRUE, &menuItemInfo);
+	index++;
+
+	//Separator
+	menuItemInfo.fMask = MIIM_STATE;
+	menuItemInfo.fType = MFT_SEPARATOR;
+	InsertMenuItem(hMenu, index, TRUE, &menuItemInfo);
+	index++;
+
+	menuItemInfo.fMask = MIIM_STRING|MIIM_STATE|MIIM_ID;
+	menuItemInfo.fType = MFT_STRING;
+
+	for (c=0; c<21; c++)	{
+
+		menuItemInfo.dwTypeData=navWindowInfo->columnTitle[c];
+		menuItemInfo.cch = strlen(navWindowInfo->columnTitle[c]);
+		menuItemInfo.wID = IDM_LISTVIEWHEADERCOLUMNS + c;
+
+		if (navWindowInfo->widthColumn[c])
+			menuItemInfo.fState = MF_CHECKED;
+		else
+			menuItemInfo.fState = MF_UNCHECKED;
+
+		InsertMenuItem(hMenu, index, TRUE, &menuItemInfo);
+		index++;
+	}
+
+
+
+
+	TrackPopupMenuEx(hMenu, TPM_LEFTALIGN| TPM_TOPALIGN, x, y, hwnd, NULL);
+	DestroyMenu(hMenu);
+
+	return 0;
 }

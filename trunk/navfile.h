@@ -84,6 +84,9 @@ struct sNavWindowInfo	{
 
 	NAV_RECORD displayRecord[1024];	//I want to load 1024, starting record nearest 512
 
+	int	mousePushed;
+	int mouseDragging;
+	int movingColumn;		//the column adjuster highlighted
 
 	int widthColumn[24];	//0 is the key, 1 is s1
 	char columnTitle[24][64];
@@ -102,6 +105,8 @@ HWND NavWindowCreate(HWND hwndMDIClient, HINSTANCE hInst);
 int	NavRecordListHeaderPaint(HWND hwnd);
 int NavRecordListViewPaint(HWND hwnd);
 int NavRecordHeaderPaint(HWND hwnd);
+int NavRecordListHeaderCheckAdjustBar(NAVWINDOW_INFO * navWindowInfo, int x, int y);
+int NavWindowListHeaderHandleContextMenu(HWND hwnd, WPARAM wparam, LPARAM lparam);
 
 void NavInitiateColumnWidths(NAVWINDOW_INFO * navWindowInfo);
 
@@ -111,3 +116,4 @@ long NavWindowOnMouseWheel(HWND hwnd, short nDelta);
 
 int ReadRecordsFromNavFile(NAVWINDOW_INFO *navWindowInfo, unsigned long offset, NAV_RECORD* ptrRecord, long numRecords);
 int NavWindowLoadFile(HWND hwnd, char *openfilename);
+int NavWindowUnloadFile(HWND hwnd);	//closes the file handle, and frees the memory

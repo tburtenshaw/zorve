@@ -50,6 +50,9 @@
 #define ID_TOOLBAR	5000
 #define IDD_ABOUT	100
 
-// Pictures
+//
+#define IDM_LISTVIEWHEADERCOLUMNS 100	//runs until 120 or so (one for each column)
+#define IDM_LISTVIEWHEADERDEFAULT 99
 
+// Pictures
 #define ID_BITMAP_FOLDERPIC 900
