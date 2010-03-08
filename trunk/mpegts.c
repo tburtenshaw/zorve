@@ -1,4 +1,6 @@
+#include "stdio.h"
 #include "zorveres.h"
+#include "zorve.h"
 #include "mpegts.h"
 
 //This registers the Window Class for the list files
@@ -27,13 +29,98 @@ int MpegWindowRegisterWndClass(HINSTANCE hInst)
 
 LRESULT CALLBACK ChildWndMpegProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam)
 {
+	HINSTANCE hInst;
+	MPEGWINDOW_INFO *mpegWindowInfo;
+
 	switch(msg) {
+		case WM_CREATE:
+			hInst=((LPCREATESTRUCT)lparam)->hInstance;	//get the hinstance for use when creating the child window
+
+			mpegWindowInfo=malloc(sizeof(MPEGWINDOW_INFO));
+			SetWindowLong(hwnd, GWL_USERDATA, (long)mpegWindowInfo); //set the custom long of the window to remember it
+			memset(mpegWindowInfo, 0, sizeof(MPEGWINDOW_INFO));	//make sure everything set to zero
+
+			mpegWindowInfo->hwndNextButton =	CreateWindow("BUTTON", "Next record",
+				    					WS_CHILD|WS_VISIBLE|WS_TABSTOP|WS_BORDER|BS_PUSHBUTTON,
+									    20,250,130,30, hwnd, NULL, hInst, NULL);
+
+
+			break;
+		case WM_PAINT:
+			MpegWindowPaint(hwnd);
+			break;
+		case WM_COMMAND:
+			mpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);	//get the point to window info
+			if (lparam==(LPARAM)mpegWindowInfo->hwndNextButton)	{
+				MpegReadPacket(&mpegWindowInfo->fileInfo, &mpegWindowInfo->displayedPacket);
+				InvalidateRect(hwnd, NULL, FALSE);
+			}
+			break;
+		case WM_KEYDOWN:
+			mpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);	//get the point to window info
+
+				MpegReadPacket(&mpegWindowInfo->fileInfo, &mpegWindowInfo->displayedPacket);
+				InvalidateRect(hwnd, NULL, FALSE);
+
+			break;
+		case WM_ERASEBKGND:
+			return 1;
+			break;
 	}
 	return DefMDIChildProc(hwnd, msg, wparam, lparam);
 }
 
+int MpegWindowPaint(HWND hwnd)
+{
+	MPEGWINDOW_INFO *mpegWindowInfo;
+
+	HDC	hdc;
+	PAINTSTRUCT ps;
+	RECT clientRect;
+	RECT outputRect;
+
+	HFONT hSmallFont;
+	TEXTMETRIC textMetric;
+
+	char buffer[255];
+
+	mpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);	//get the point to window info
+
+	GetClientRect(hwnd, &clientRect);
+	hdc=BeginPaint(hwnd, &ps);
+
+	SetBkColor(hdc, RGB_ZINNY_DARKBLUE);
+	SetTextColor(hdc, RGB_ZINNY_WHITE);
+
+	outputRect.left=clientRect.left;
+	outputRect.right=clientRect.right;
+	outputRect.top=clientRect.top;
+	outputRect.bottom=clientRect.bottom;
+
+	sprintf(buffer, "File size: %u. Offset:0x%x, pid:$%x, cont:%u", mpegWindowInfo->fileInfo.filesize, mpegWindowInfo->fileInfo.offset-188, mpegWindowInfo->displayedPacket.pid, mpegWindowInfo->displayedPacket.continuitycounter);
+	ExtTextOut(hdc, 0,0,ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
+
+
+	EndPaint(hwnd, &ps);
+
+	return 0;
+}
+
 int MpegWindowLoadFile(HWND hwnd, char * mpegFile)
 {
+	MPEGWINDOW_INFO *mpegWindowInfo;
+
+	mpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
+
+	lstrcpy(mpegWindowInfo->fileInfo.filename, mpegFile);
+	//Load as 'sequential' for caching.
+	mpegWindowInfo->fileInfo.hMpegFile = CreateFile(mpegFile, GENERIC_READ, FILE_SHARE_READ, NULL,
+				OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+
+	mpegWindowInfo->fileInfo.filesize=GetFileSize(mpegWindowInfo->fileInfo.hMpegFile, NULL);
+
+	MpegTSFindSyncByte(mpegWindowInfo->fileInfo.hMpegFile, &mpegWindowInfo->fileInfo.firstSyncByte);
+	mpegWindowInfo->fileInfo.offset=mpegWindowInfo->fileInfo.firstSyncByte;
 
 	return 0;
 }
@@ -54,20 +141,19 @@ int MpegTSFindSyncByte(HANDLE hFile, long * syncbyteOffset)
 	GetFileSizeEx(hFile, &largeint_filesize);
 	filesize=largeint_filesize.LowPart;
 
-
-	SetFilePointer(hFile, 0x0, NULL, FILE_BEGIN);
 	offset=0;
 	occurence = 0;
 	justskipped=0;
 
-
+	SetFilePointer(hFile, offset, NULL, FILE_BEGIN);
 
 	readResult = ReadFile(hFile, &testbyte, 1, &n, NULL);
 	while ((readResult) && (offset<filesize))	{
 		if (testbyte == 0x47)	{
 			occurence++;
 			if (occurence==5)	{
-				*syncbyteOffset=offset-940;
+				*syncbyteOffset = offset-752;
+				SetFilePointer(hFile, *syncbyteOffset, NULL, FILE_BEGIN);
 				return 1;
 			}
 			offset+=188;
@@ -95,6 +181,102 @@ int MpegTSFindSyncByte(HANDLE hFile, long * syncbyteOffset)
 
 	return 0;
 }
+
+int MpegReadPacket(MPEGFILE_INFO *mpegFileInfo, TS_PACKET *packet)
+{
+	long n;	//dummy amount read
+
+	int b;	//the byte we are up to
+
+	ReadFile(mpegFileInfo->hMpegFile, packet->TS_raw_packet, 188, &n, NULL);
+	mpegFileInfo->offset+=188;
+
+	packet->syncbyte = packet->TS_raw_packet[0];
+	packet->transporterror =	packet->TS_raw_packet[1] & 0x80 >> 7;
+	packet->payloadstart =		packet->TS_raw_packet[1] & 0x40 >> 6;
+	packet->transportpriority =	packet->TS_raw_packet[1] & 0x20 >> 5;
+	packet->pid	= ((packet->TS_raw_packet[1] & 0b11111) << 8) | packet->TS_raw_packet[2];
+	packet->scrambling	=		(packet->TS_raw_packet[3] & 0b11000000) >> 6;
+	packet->adaptation	= 		(packet->TS_raw_packet[3] & 0b00110000) >> 4;
+	packet->continuitycounter= 	(packet->TS_raw_packet[3] & 0b00001111);
+
+	if (packet->adaptation & 0b10)	{
+		packet->adaptationfield.adaptationfieldlength = packet->TS_raw_packet[4];
+		packet->adaptationfield.discontinuity =		packet->TS_raw_packet[5] & 0b10000000 >> 7;
+		packet->adaptationfield.randomaccess =		packet->TS_raw_packet[5] & 0b01000000 >> 6;
+		packet->adaptationfield.EsPriority =		packet->TS_raw_packet[5] & 0b00100000 >> 5;
+		packet->adaptationfield.PCRFlag =			packet->TS_raw_packet[5] & 0b00010000 >> 4;
+		packet->adaptationfield.OPCRFlag =			packet->TS_raw_packet[5] & 0b00001000 >> 3;
+		packet->adaptationfield.splicingpointflag =	packet->TS_raw_packet[5] & 0b00000100 >> 2;
+		packet->adaptationfield.transportprivatedataflag =		packet->TS_raw_packet[5] & 0b00000010 >> 1;
+		packet->adaptationfield.adaptationfieldextensionflag =	packet->TS_raw_packet[5] & 0b00000001;
+
+		b=6;
+		if (packet->adaptationfield.PCRFlag)	{	//nothing is more annoying than a 33bit value
+			packet->adaptationfield.PcrBase	= packet->TS_raw_packet[6];
+			packet->adaptationfield.PcrBase <<=1;
+			packet->adaptationfield.PcrBase |=packet->TS_raw_packet[7]>>7;
+
+			packet->adaptationfield.PcrExt	=	(packet->TS_raw_packet[7]&1)<<9;
+			packet->adaptationfield.PcrExt	|=	packet->TS_raw_packet[8];
+			b=9;
+		}
+		if (packet->adaptationfield.OPCRFlag)	{	//nothing is more annoying than a 33bit value
+			packet->adaptationfield.OpcrBase	= packet->TS_raw_packet[b];
+			packet->adaptationfield.OpcrBase <<=1;
+			packet->adaptationfield.OpcrBase |=packet->TS_raw_packet[b+1]>>7;
+
+			packet->adaptationfield.OpcrExt	=	(packet->TS_raw_packet[b+1]&1)<<9;
+			packet->adaptationfield.OpcrExt	|=	packet->TS_raw_packet[b+2];
+			b+=3;
+		}
+		if (packet->adaptationfield.splicingpointflag)	{
+			packet->adaptationfield.splicecountdown = packet->TS_raw_packet[b];
+			b++;
+		}
+		if (packet->adaptationfield.transportprivatedataflag)	{
+			packet->adaptationfield.transportprivatedatalength = packet->TS_raw_packet[b];
+			memcpy(&packet->adaptationfield.privatedata, &packet->TS_raw_packet[b+1], packet->adaptationfield.transportprivatedatalength);
+			b+=packet->adaptationfield.transportprivatedatalength+1;
+		}
+		if (packet->adaptationfield.adaptationfieldextensionflag)	{
+			packet->adaptationfield.adaptationfieldextensionlength = packet->TS_raw_packet[b];
+			b++;
+			packet->adaptationfield.ltwflag	= packet->TS_raw_packet[b] & 0b10000000>>7;
+			packet->adaptationfield.piecewiserateflag	= packet->TS_raw_packet[b] & 0b01000000>>6;
+			packet->adaptationfield.seamlessspliceflag	= packet->TS_raw_packet[b] & 0b00100000>>5;
+			b++;
+			if (packet->adaptationfield.ltwflag)	{
+				packet->adaptationfield.ltwflag	= packet->TS_raw_packet[b] & 0b10000000>>7;
+				packet->adaptationfield.ltwoffset = (LONG)(packet->TS_raw_packet[b]&0b01111111)<<8;
+				b++;
+				packet->adaptationfield.ltwoffset |=packet->TS_raw_packet[b];
+				b++;
+			}
+			if (packet->adaptationfield.piecewiserateflag)	{
+				packet->adaptationfield.piecewiserate  = (LONG)(packet->TS_raw_packet[b] & 0b00111111) <<16;
+				packet->adaptationfield.piecewiserate |= (LONG)packet->TS_raw_packet[b+1] <<8;
+				packet->adaptationfield.piecewiserate |= packet->TS_raw_packet[b+2];
+				b+=3;
+
+			}
+			if (packet->adaptationfield.seamlessspliceflag)	{
+				packet->adaptationfield.splicetype=packet->TS_raw_packet[b] &0b11110000 >> 4;
+				packet->adaptationfield.DTSnextAU=packet->TS_raw_packet[b] & 0b00001110;
+				packet->adaptationfield.DTSnextAU <<=29;
+				//packet->adaptationfield.DTSnextAU|=(ULONGLONG)(packet->TS_raw_packet[b+1] & 0b1111111111111110)<<14;
+
+				b+=5;
+			}
+
+
+		}
+
+	}
+
+	return 0;
+}
+
 
 HWND MpegWindowCreateOrShow(HWND hwnd, HWND hwndChild, HINSTANCE hInst)
 {
