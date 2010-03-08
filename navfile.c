@@ -95,6 +95,9 @@ LRESULT CALLBACK ChildWndNavProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam)
 			NavRecordHeaderPaint(hwnd);
 			DefMDIChildProc(hwnd, msg, wparam, lparam);
 			break;
+		case WM_ERASEBKGND:
+			return 1;
+			break;
 		case WM_MOUSEWHEEL:
 			return NavWindowOnMouseWheel(hwnd, (short)HIWORD(wparam));
 			break;
@@ -152,6 +155,9 @@ LRESULT CALLBACK NavRecordListViewFileProc(HWND hwnd,UINT msg, WPARAM wparam,LPA
 			navWindowInfo=(NAVWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);	//get the point to window info
 			NavScrollUpdate(hwnd, navWindowInfo);
 			break;
+		case WM_ERASEBKGND:
+			return 1;
+			break;
 		case WM_VSCROLL:
 			NavHandleVScroll(hwnd, wparam, lparam);
 			break;
@@ -184,6 +190,9 @@ LRESULT CALLBACK NavRecordListViewHeaderProc(HWND hwnd,UINT msg, WPARAM wparam,L
 	switch(msg) {
 		case WM_PAINT:
 			NavRecordListHeaderPaint(hwnd);
+			break;
+		case WM_ERASEBKGND:
+			return 1;
 			break;
 		case WM_MOUSEMOVE:
 			navWindowInfo=(NAVWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);
@@ -787,7 +796,7 @@ int NavWindowLoadFile(HWND hwnd, char *openfilename)
 
 	navWindowInfo=(NAVWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
 
-	strcpy(navWindowInfo->fileInfo.filename, openfilename);
+	lstrcpy(navWindowInfo->fileInfo.filename, openfilename);
 	navWindowInfo->fileInfo.hNavFile = CreateFile(openfilename, GENERIC_READ, FILE_SHARE_READ, NULL,
 				OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS, NULL);
 

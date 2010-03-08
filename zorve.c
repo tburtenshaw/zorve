@@ -182,6 +182,7 @@ void MainWndProc_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
 {
 	LISTWINDOW_INFO *lpListWindowInfo;
 	DIRECTORY_INFO *lpDirectoryInfo;
+	MPEGWINDOW_INFO *lpMpegWindowInfo;
 
 	char openfilename[MAX_PATH];
 	char *p;
@@ -230,6 +231,9 @@ void MainWndProc_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
 			if (result==ZFT_MPEGTS)	{
 				hwndMpeg= MpegWindowCreateOrShow(hwndMpeg, hwndMDIClient, hInstProgram);
 				MpegWindowLoadFile(hwndMpeg, openfilename);
+				lpMpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(hwndMpeg, GWL_USERDATA);
+				MpegReadPacket(&lpMpegWindowInfo->fileInfo, &lpMpegWindowInfo->displayedPacket);
+
 				return;
 			}
 			if (result==ZFT_NAV)	{
@@ -583,7 +587,6 @@ char * ReturnChannelNameFromPID(int pid)
 
 
 	return NULL;
-
 }
 
 
