@@ -18,7 +18,8 @@ BEGIN
         MENUITEM "&Open...",                    IDM_OPEN
         MENUITEM "&Save",                       IDM_SAVE, GRAYED
         MENUITEM "Save &As...",                 IDM_SAVEAS, GRAYED
-        MENUITEM "&Close",                      IDM_CLOSE, GRAYED
+        MENUITEM "&Close",                      IDM_CLOSE
+		MENUITEM "&Export...",					IDM_FILEEXPORT
         MENUITEM SEPARATOR
         MENUITEM "E&xit",                       IDM_EXIT
     END

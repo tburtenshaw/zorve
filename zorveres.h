@@ -14,6 +14,7 @@
 #define IDM_SAVE 220
 #define IDM_SAVEAS 230
 #define IDM_CLOSE 240
+#define IDM_FILEEXPORT 241
 #define IDM_PRINT 250
 #define IDM_PRINTSU 260
 #define IDM_PAGESETUP 267

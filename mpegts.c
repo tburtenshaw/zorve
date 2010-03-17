@@ -56,13 +56,6 @@ LRESULT CALLBACK ChildWndMpegProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 				InvalidateRect(hwnd, NULL, FALSE);
 			}
 			break;
-		case WM_KEYDOWN:
-			mpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);	//get the point to window info
-
-				MpegReadPacket(&mpegWindowInfo->fileInfo, &mpegWindowInfo->displayedPacket);
-				InvalidateRect(hwnd, NULL, FALSE);
-
-			break;
 		case WM_ERASEBKGND:
 			return 1;
 			break;
@@ -112,6 +105,13 @@ int MpegWindowLoadFile(HWND hwnd, char * mpegFile)
 
 	mpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
 
+	//Check if there is already a file open and unload it
+	if (mpegWindowInfo->fileInfo.hMpegFile)	{
+		CloseHandle(mpegWindowInfo->fileInfo.hMpegFile);
+		memset(mpegWindowInfo,0,sizeof(MPEGWINDOW_INFO));
+	}
+
+
 	lstrcpy(mpegWindowInfo->fileInfo.filename, mpegFile);
 	//Load as 'sequential' for caching.
 	mpegWindowInfo->fileInfo.hMpegFile = CreateFile(mpegFile, GENERIC_READ, FILE_SHARE_READ, NULL,
@@ -122,6 +122,62 @@ int MpegWindowLoadFile(HWND hwnd, char * mpegFile)
 	MpegTSFindSyncByte(mpegWindowInfo->fileInfo.hMpegFile, &mpegWindowInfo->fileInfo.firstSyncByte);
 	mpegWindowInfo->fileInfo.offset=mpegWindowInfo->fileInfo.firstSyncByte;
 
+	//Now start a thread that gradually loads in statistical information about the mpeg.
+	mpegWindowInfo->fileInfo.hBackgroundThread=CreateThread(NULL, (SIZE_T)0, (LPTHREAD_START_ROUTINE)MpegReadFileStats, &mpegWindowInfo->fileInfo, 0, NULL);
+	//MpegReadFileStats(&mpegWindowInfo->fileInfo);
+
+	return 0;
+}
+
+DWORD WINAPI MpegReadFileStats(MPEGFILE_INFO *mpegFileInfo)
+{
+	TS_PACKET packet;
+	long offset;
+	int pTry;
+	int stay;
+
+	char tempBuffer[255];
+
+
+	offset=0;
+	mpegFileInfo->loadingInBackground = TRUE;
+
+	while (offset < mpegFileInfo->filesize)	{
+		MpegReadPacket(mpegFileInfo, &packet);
+		offset+=188;
+
+		pTry=0;
+		stay=1;
+		while (stay)	{
+			if (mpegFileInfo->seenPid[pTry]==packet.pid)	{
+				mpegFileInfo->countPid[pTry]++;
+				stay=0;
+			}
+			if ((stay==1) && (mpegFileInfo->seenPid[pTry]==0))	{
+				mpegFileInfo->seenPid[pTry]=packet.pid;
+				mpegFileInfo->countPid[pTry]=1;
+				stay=0;
+			}
+			pTry++;
+			if (pTry==255)
+				stay=0;
+		}
+
+
+	}
+	SetFilePointer(mpegFileInfo->hMpegFile, 0, 0, FILE_BEGIN);
+	mpegFileInfo->offset=0;
+
+	pTry=0;
+
+	while (mpegFileInfo->seenPid[pTry] && pTry<255)	{
+		sprintf(tempBuffer, "No: %i PID: %x",pTry, mpegFileInfo->seenPid[pTry]);
+		MessageBox(0, tempBuffer,"Loaded Mpeg",0);
+		pTry++;
+	}
+
+
+	mpegFileInfo->loadingInBackground = FALSE;
 	return 0;
 }
 
@@ -187,6 +243,8 @@ int MpegReadPacket(MPEGFILE_INFO *mpegFileInfo, TS_PACKET *packet)
 	long n;	//dummy amount read
 
 	int b;	//the byte we are up to
+	int offsetAtAF;
+	int offsetAtAFExt;
 
 	ReadFile(mpegFileInfo->hMpegFile, packet->TS_raw_packet, 188, &n, NULL);
 	mpegFileInfo->offset+=188;
@@ -242,6 +300,7 @@ int MpegReadPacket(MPEGFILE_INFO *mpegFileInfo, TS_PACKET *packet)
 		if (packet->adaptationfield.adaptationfieldextensionflag)	{
 			packet->adaptationfield.adaptationfieldextensionlength = packet->TS_raw_packet[b];
 			b++;
+			offsetAtAFExt=b;
 			packet->adaptationfield.ltwflag	= packet->TS_raw_packet[b] & 0b10000000>>7;
 			packet->adaptationfield.piecewiserateflag	= packet->TS_raw_packet[b] & 0b01000000>>6;
 			packet->adaptationfield.seamlessspliceflag	= packet->TS_raw_packet[b] & 0b00100000>>5;
@@ -265,12 +324,14 @@ int MpegReadPacket(MPEGFILE_INFO *mpegFileInfo, TS_PACKET *packet)
 				packet->adaptationfield.DTSnextAU=packet->TS_raw_packet[b] & 0b00001110;
 				packet->adaptationfield.DTSnextAU <<=29;
 				//packet->adaptationfield.DTSnextAU|=(ULONGLONG)(packet->TS_raw_packet[b+1] & 0b1111111111111110)<<14;
-
+				//NEED TO FIX
 				b+=5;
 			}
-
-
+			//We could skip this, but it'll be skipped when we use the AF length
+			//b=offsetAtAFExt+packet->adaptationfield.adaptationfieldextensionlength;
 		}
+		//Skip the padding. The AF length is at byte 4, this ensures we end after this.
+		b=4+packet->adaptationfield.adaptationfieldlength;
 
 	}
 

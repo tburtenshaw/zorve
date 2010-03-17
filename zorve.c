@@ -9,7 +9,6 @@
 #include "mpegts.h"	//Handles the transport stream window
 #include "navfile.h"//Handles the .nav file associated with mpg
 
-/*<---------------------------------------------------------------------->*/
 HINSTANCE hInstProgram;		// Instance handle
 HWND hwndMain;			//Main window handle
 HWND hwndMDIClient;		//Mdi client window handle
@@ -189,6 +188,7 @@ void MainWndProc_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
 
 	int result;
 
+	char outputbuffer[255];
 
 	switch(id) {
 		case IDM_ABOUT:
@@ -233,7 +233,6 @@ void MainWndProc_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
 				MpegWindowLoadFile(hwndMpeg, openfilename);
 				lpMpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(hwndMpeg, GWL_USERDATA);
 				MpegReadPacket(&lpMpegWindowInfo->fileInfo, &lpMpegWindowInfo->displayedPacket);
-
 				return;
 			}
 			if (result==ZFT_NAV)	{
@@ -256,6 +255,10 @@ void MainWndProc_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
 			break;
 		case IDM_EXIT:
 			PostMessage(hwnd,WM_CLOSE,0,0);
+			break;
+		case IDM_FILEEXPORT:
+			sprintf(outputbuffer, "hwnd %i, id %i, hwndCtl %i, codeNotify %i", (long)hwnd, id, (long)hwndCtl, codeNotify);
+			MessageBox(hwnd, outputbuffer, "Export",0);
 			break;
 	}
 }
