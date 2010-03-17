@@ -57,6 +57,17 @@ struct sMpegFileInfo	{
 
 	unsigned long firstSyncByte;
 	unsigned long offset;
+
+	HANDLE hBackgroundThread;
+	BOOL	loadingInBackground;
+	BOOL	pauseBackgroundLoad;
+	unsigned int seenPid[255];
+	unsigned long countPid[255];
+	unsigned int typePid[255];
+
+	unsigned long countPackets;
+	unsigned long countPES;
+
 };
 
 struct sMpegWindowInfo	{
@@ -77,3 +88,5 @@ int MpegWindowPaint(HWND hwnd);
 int MpegWindowLoadFile(HWND hwnd, char * mpegFile);
 int MpegTSFindSyncByte(HANDLE hFile, long * syncbyteOffset);
 int MpegReadPacket(MPEGFILE_INFO *mpegFileInfo, TS_PACKET *packet);
+
+DWORD WINAPI MpegReadFileStats(MPEGFILE_INFO *mpegFileInfo);

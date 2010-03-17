@@ -67,6 +67,7 @@ struct sNavFileInfo	{
 	char filename[MAX_PATH];
 
 	long numRecords;
+	double estTimeSpanSeconds;
 };
 
 struct sNavWindowInfo	{

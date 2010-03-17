@@ -104,6 +104,9 @@ LRESULT CALLBACK ChildWndNavProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam)
 		case WM_DESTROY:
 			NavWindowUnloadFile(hwnd);
 			break;
+		case WM_COMMAND:
+			MessageBox(hwnd, "cmd","cmd",0);
+			break;
 		default:
 			return DefMDIChildProc(hwnd, msg, wparam, lparam);
 	}
@@ -299,6 +302,7 @@ int	NavRecordListHeaderPaint(HWND hwnd)
 	PAINTSTRUCT ps;
 	RECT clientRect;
 	RECT outputRect;
+	RECT controlRect;
 
 	HFONT hSmallFont;
 	TEXTMETRIC textMetric;
@@ -340,11 +344,22 @@ int	NavRecordListHeaderPaint(HWND hwnd)
 	for (c=0; c<21; c++)	{
 
 		if (navWindowInfo->widthColumn[c]>0)	{
-			ExtTextOut(hdc, x,y,ETO_OPAQUE, &outputRect, navWindowInfo->columnTitle[c], strlen(navWindowInfo->columnTitle[c]), NULL);
+			//margin of two for control
+			ExtTextOut(hdc, x+2,y,ETO_OPAQUE, &outputRect, navWindowInfo->columnTitle[c], strlen(navWindowInfo->columnTitle[c]), NULL);
 			x+=navWindowInfo->widthColumn[c];
 		}
-			outputRect.left=x;
+			outputRect.left=x+1;
 			outputRect.right=x+navWindowInfo->widthColumn[c+1];
+
+			SetBkColor(hdc, RGB_ZINNY_MIDPURPLE);
+			controlRect.left=x;
+			controlRect.right=x+1;
+			controlRect.top=clientRect.top;
+			controlRect.bottom=clientRect.bottom;
+
+
+			ExtTextOut(hdc,0,0,ETO_OPAQUE, &controlRect, NULL, 0,NULL);
+			SetBkColor(hdc, RGB_ZINNY_DARKBLUE);
 	}
 
 	//Fill up to right margin
@@ -427,7 +442,7 @@ int NavRecordListViewPaint(HWND hwnd)
 						sprintf(buffer, "%04x", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].twobytes2);
 						break;
 					case 3:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s3);
+						sprintf(buffer, "%04x", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s3);
 						break;
 					case 4:
 						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s4);
@@ -439,6 +454,7 @@ int NavRecordListViewPaint(HWND hwnd)
 						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l6);
 						break;
 					case 7:
+						//The time stamp is the 300x the number of 1/27000000ths, Olevia stores this as a 32 bit value (half the original)
 						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l7);
 						break;
 					case 8:
@@ -557,10 +573,10 @@ void NavInitiateColumnWidths(NAVWINDOW_INFO * navWindowInfo)
 	sprintf(navWindowInfo->columnTitle[4], "s4");
 	sprintf(navWindowInfo->columnTitle[5], "l5");
 	sprintf(navWindowInfo->columnTitle[6], "l6-offset");
-	sprintf(navWindowInfo->columnTitle[7], "l7");
+	sprintf(navWindowInfo->columnTitle[7], "l7-timer");
 	sprintf(navWindowInfo->columnTitle[8], "s8");
 	sprintf(navWindowInfo->columnTitle[9], "s9");
-	sprintf(navWindowInfo->columnTitle[10], "l10");
+	sprintf(navWindowInfo->columnTitle[10], "l10-millisec");
 	sprintf(navWindowInfo->columnTitle[11], "l11");
 	sprintf(navWindowInfo->columnTitle[12], "l12");
 	sprintf(navWindowInfo->columnTitle[13], "l13");
@@ -582,6 +598,7 @@ int NavRecordHeaderPaint(HWND hwnd)
 	HDC	hdc;
 	PAINTSTRUCT ps;
 	RECT clientRect;
+	RECT outputRect;
 
 	NAVWINDOW_INFO *navWindowInfo;
 	char buffer[255];
@@ -613,17 +630,26 @@ int NavRecordHeaderPaint(HWND hwnd)
 
 
 	y=0;
-	ExtTextOut(hdc,	0,y,ETO_OPAQUE, &clientRect, navWindowInfo->fileInfo.filename,strlen(navWindowInfo->fileInfo.filename), NULL);
+
+	outputRect.top=y; outputRect.bottom=y+heightFont;
+	outputRect.left=clientRect.left; outputRect.right=clientRect.right;
+	ExtTextOut(hdc,	0,y,ETO_OPAQUE, &outputRect, navWindowInfo->fileInfo.filename,strlen(navWindowInfo->fileInfo.filename), NULL);
 	y+=heightFont;
 
+	outputRect.top=y; outputRect.bottom=y+heightFont;
 	sprintf(buffer, "Size: %u bytes", navWindowInfo->fileInfo.filesize);
-	ExtTextOut(hdc,	0,y,ETO_OPAQUE, NULL, buffer, strlen(buffer), NULL);
+	ExtTextOut(hdc,	0,y,ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
 	y+=heightFont;
 
+	outputRect.top=y; outputRect.bottom=clientRect.bottom;
+	outputRect.left=clientRect.left; outputRect.right=(clientRect.left+clientRect.right)/2;
 	sprintf(buffer, "Records: %u", navWindowInfo->fileInfo.numRecords);
-	ExtTextOut(hdc,	0,y,ETO_OPAQUE, NULL, buffer, strlen(buffer), NULL);
-	y+=heightFont;
+	ExtTextOut(hdc,	0,y,ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
 
+	outputRect.left=(clientRect.left+clientRect.right)/2;		outputRect.right=clientRect.right;
+	sprintf(buffer, "Length: %9.2fs", navWindowInfo->fileInfo.estTimeSpanSeconds);
+	ExtTextOut(hdc,	(clientRect.left+clientRect.right)/2,y,ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
+	y+=heightFont;
 
 	EndPaint(hwnd, &ps);
 
@@ -793,8 +819,22 @@ int NavScrollUpdate(HWND hwnd, NAVWINDOW_INFO * navWindowInfo)
 int NavWindowLoadFile(HWND hwnd, char *openfilename)
 {
 	NAVWINDOW_INFO *navWindowInfo;
+//	NAV_RECORD firstRecord;
+	NAV_RECORD lastRecord;
 
 	navWindowInfo=(NAVWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
+
+	//Check if there is already a file open and unload it
+	if (navWindowInfo->fileInfo.hNavFile)	{
+		CloseHandle(navWindowInfo->fileInfo.hNavFile);
+
+		navWindowInfo->firstDisplayedRecord=0;
+		navWindowInfo->indexRecordBuffer=-1;
+		InvalidateRect(hwnd, NULL, FALSE);
+		InvalidateRect(navWindowInfo->hwndRecordList, NULL, FALSE);
+		InvalidateRect(navWindowInfo->hwndRecordListHeader, NULL, FALSE);
+
+	}
 
 	lstrcpy(navWindowInfo->fileInfo.filename, openfilename);
 	navWindowInfo->fileInfo.hNavFile = CreateFile(openfilename, GENERIC_READ, FILE_SHARE_READ, NULL,
@@ -803,6 +843,12 @@ int NavWindowLoadFile(HWND hwnd, char *openfilename)
 
 	navWindowInfo->fileInfo.filesize=GetFileSize(navWindowInfo->fileInfo.hNavFile,NULL);
 	navWindowInfo->fileInfo.numRecords=navWindowInfo->fileInfo.filesize/sizeof(NAV_RECORD);
+
+//	ReadRecordsFromNavFile(navWindowInfo, 0, &firstRecord, 1);
+	ReadRecordsFromNavFile(navWindowInfo, navWindowInfo->fileInfo.numRecords-1, &lastRecord, 1);
+
+//	navWindowInfo->fileInfo.estTimeSpanSeconds=(double)(lastRecord.l7-firstRecord.l7) / 45000;
+	navWindowInfo->fileInfo.estTimeSpanSeconds=(double)(lastRecord.l10)/1000;
 
 	//These should be set up before loading.
 	UpdateBuffer(navWindowInfo);

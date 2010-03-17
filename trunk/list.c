@@ -217,6 +217,9 @@ LRESULT CALLBACK ListChildFileProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lpara
 			llist=lpDirectoryInfo->first;
 			while (llist)	{
 				if (PtInRect(&llist->boundingRect, point))	{
+					//NOTE: I NEED TO GET RID OF ALL THIS INTERLINKING.
+					//PLANNING TO REPLACE WITH WM_NOTIFYs AND LETTING zorve.c handle it.
+
 					hwndInfo = (HWND)ZorveGetHwndInfo();
 					hwndInfo = InfoWindowCreateOrShow(hwndInfo, GetParent(GetParent(hwnd)), (HINSTANCE)GetWindowLong(hwnd, GWL_HINSTANCE));
 					ZorveSetHwndInfo(hwndInfo);
