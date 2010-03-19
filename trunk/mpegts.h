@@ -57,10 +57,12 @@ struct sMpegFileInfo	{
 
 	unsigned long firstSyncByte;
 	unsigned long offset;
+	unsigned long displayOffset;
 
 	HANDLE hBackgroundThread;
+	HANDLE hFileAccessMutex;
 	BOOL	loadingInBackground;
-	BOOL	pauseBackgroundLoad;
+	//BOOL	pauseBackgroundLoad;	//will probably use suspend thread for this
 	unsigned int seenPid[255];
 	unsigned long countPid[255];
 	unsigned int typePid[255];

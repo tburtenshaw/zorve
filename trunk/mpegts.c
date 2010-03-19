@@ -32,6 +32,8 @@ LRESULT CALLBACK ChildWndMpegProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 	HINSTANCE hInst;
 	MPEGWINDOW_INFO *mpegWindowInfo;
 
+	unsigned long tempOffset;
+
 	switch(msg) {
 		case WM_CREATE:
 			hInst=((LPCREATESTRUCT)lparam)->hInstance;	//get the hinstance for use when creating the child window
@@ -52,7 +54,27 @@ LRESULT CALLBACK ChildWndMpegProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 		case WM_COMMAND:
 			mpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);	//get the point to window info
 			if (lparam==(LPARAM)mpegWindowInfo->hwndNextButton)	{
-				MpegReadPacket(&mpegWindowInfo->fileInfo, &mpegWindowInfo->displayedPacket);
+				if (mpegWindowInfo->fileInfo.loadingInBackground)	{
+					WaitForSingleObject(mpegWindowInfo->fileInfo.hFileAccessMutex,INFINITE);
+
+					tempOffset=mpegWindowInfo->fileInfo.offset;	//remember the offset
+
+					mpegWindowInfo->fileInfo.offset=mpegWindowInfo->fileInfo.displayOffset; //move to the display offset
+					SetFilePointer(mpegWindowInfo->fileInfo.hMpegFile, mpegWindowInfo->fileInfo.displayOffset, 0, FILE_BEGIN);
+					MpegReadPacket(&mpegWindowInfo->fileInfo, &mpegWindowInfo->displayedPacket);//readit
+					mpegWindowInfo->fileInfo.displayOffset=mpegWindowInfo->fileInfo.offset;
+
+					mpegWindowInfo->fileInfo.offset=tempOffset;	//set the offset back to what it was
+					SetFilePointer(mpegWindowInfo->fileInfo.hMpegFile, tempOffset,0, FILE_BEGIN);
+
+					ReleaseMutex(mpegWindowInfo->fileInfo.hFileAccessMutex);
+				}
+				else	{
+					mpegWindowInfo->fileInfo.offset=mpegWindowInfo->fileInfo.displayOffset;
+					MpegReadPacket(&mpegWindowInfo->fileInfo, &mpegWindowInfo->displayedPacket);
+					mpegWindowInfo->fileInfo.displayOffset=mpegWindowInfo->fileInfo.offset;
+				}
+
 				InvalidateRect(hwnd, NULL, FALSE);
 			}
 			break;
@@ -76,6 +98,7 @@ int MpegWindowPaint(HWND hwnd)
 	TEXTMETRIC textMetric;
 
 	char buffer[255];
+	int y=0;
 
 	mpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);	//get the point to window info
 
@@ -87,11 +110,30 @@ int MpegWindowPaint(HWND hwnd)
 
 	outputRect.left=clientRect.left;
 	outputRect.right=clientRect.right;
-	outputRect.top=clientRect.top;
-	outputRect.bottom=clientRect.bottom;
 
-	sprintf(buffer, "File size: %u. Offset:0x%x, pid:$%x, cont:%u", mpegWindowInfo->fileInfo.filesize, mpegWindowInfo->fileInfo.offset-188, mpegWindowInfo->displayedPacket.pid, mpegWindowInfo->displayedPacket.continuitycounter);
-	ExtTextOut(hdc, 0,0,ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
+	y=clientRect.top;
+
+	outputRect.top=y;
+	outputRect.bottom=y+16;
+
+	sprintf(buffer, "%s",  mpegWindowInfo->fileInfo.filename);
+	ExtTextOut(hdc, 0,y,ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
+	y+=16;
+
+	outputRect.top=y;
+	outputRect.bottom=clientRect.bottom;
+	sprintf(buffer, "File size: %u. Offset:0x%x, pid:$%x, cont:%u", mpegWindowInfo->fileInfo.filesize, mpegWindowInfo->fileInfo.displayOffset, mpegWindowInfo->displayedPacket.pid, mpegWindowInfo->displayedPacket.continuitycounter);
+	ExtTextOut(hdc, 0,y,ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
+	y+=16;
+
+
+
+	outputRect.top=y;
+	outputRect.bottom=clientRect.bottom;
+	sprintf(buffer, "Percentage: %i", mpegWindowInfo->fileInfo.countPackets*100/(mpegWindowInfo->fileInfo.filesize/188));
+	ExtTextOut(hdc, 0,y,ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
+	y+=16;
+
 
 
 	EndPaint(hwnd, &ps);
@@ -123,8 +165,9 @@ int MpegWindowLoadFile(HWND hwnd, char * mpegFile)
 	mpegWindowInfo->fileInfo.offset=mpegWindowInfo->fileInfo.firstSyncByte;
 
 	//Now start a thread that gradually loads in statistical information about the mpeg.
+	mpegWindowInfo->fileInfo.hFileAccessMutex = CreateMutex(NULL, FALSE, "fileaccessmutex");
 	mpegWindowInfo->fileInfo.hBackgroundThread=CreateThread(NULL, (SIZE_T)0, (LPTHREAD_START_ROUTINE)MpegReadFileStats, &mpegWindowInfo->fileInfo, 0, NULL);
-	//MpegReadFileStats(&mpegWindowInfo->fileInfo);
+	//MpegReadFileStats(&mpegWindowInfo->fileInfo);	//override the background thread for debugging
 
 	return 0;
 }
@@ -143,7 +186,9 @@ DWORD WINAPI MpegReadFileStats(MPEGFILE_INFO *mpegFileInfo)
 	mpegFileInfo->loadingInBackground = TRUE;
 
 	while (offset < mpegFileInfo->filesize)	{
+		WaitForSingleObject(mpegFileInfo->hFileAccessMutex,INFINITE);
 		MpegReadPacket(mpegFileInfo, &packet);
+		mpegFileInfo->countPackets++;
 		offset+=188;
 
 		pTry=0;
@@ -162,7 +207,7 @@ DWORD WINAPI MpegReadFileStats(MPEGFILE_INFO *mpegFileInfo)
 			if (pTry==255)
 				stay=0;
 		}
-
+		ReleaseMutex(mpegFileInfo->hFileAccessMutex);
 
 	}
 	SetFilePointer(mpegFileInfo->hMpegFile, 0, 0, FILE_BEGIN);
