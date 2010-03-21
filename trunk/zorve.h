@@ -6,6 +6,8 @@
 #define ZFT_MPEGTS 2
 #define ZFT_NAV 3
 
+#define ZORVEWINDOWMARGIN 5
+
 #define Int32x32To64(a, b) ((LONGLONG)((LONG)(a)) * (LONGLONG)((LONG)(b)))
 #define MAX(a,b) (a > b ? a : b)
 #define MIN(a,b) (a < b ? a : b)
@@ -36,3 +38,17 @@ void ZorveSetHwndList(HWND hwnd);
 #define RGB_ZINNY_REDALERT RGB(0xA2, 0x0E, 0x06)
 #define RGB_ZINNY_ORANGEALERT RGB(0xDE,0x88,0x0D)
 #define RGB_ZINNY_GREENALERT RGB(0x00,0x6F,0x10)
+
+//Define the my custom window messages
+//These should all be initially handled by main zorve.c (but may be transfered to a child window)
+//i.e. SendMessage to the main HWND to get this done. (Potentially can send to HWND in same source file.)
+#define ZM_OPENNAV_DLG		(WM_USER+0)	//will bring up dialog to choose a NAV by default
+#define ZM_OPENMPEG_DLG 	(WM_USER+1) //will bring up dialog to choose an MPEG (i.e. list of mpgs by default)
+#define ZM_OPENFILENAV		(WM_USER+2)	//Open up particular nav file
+#define ZM_OPENFILEMPEG		(WM_USER+3)	//Open up a specified mpeg file
+#define ZM_OPENFILEINFO		(WM_USER+4)
+#define ZM_LIST_SELECTFROMFILEANDREFRESH	(WM_USER+10)	//Select the file as specified
+#define ZM_LIST_SELECTFROMFILE	(WM_USER+11)
+#define ZM_MPEG_SKIPTOOFFSET (WM_USER+20)	//Skip to a specified point
+
+

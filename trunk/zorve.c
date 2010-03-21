@@ -231,8 +231,8 @@ void MainWndProc_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
 			if (result==ZFT_MPEGTS)	{
 				hwndMpeg= MpegWindowCreateOrShow(hwndMpeg, hwndMDIClient, hInstProgram);
 				MpegWindowLoadFile(hwndMpeg, openfilename);
-				lpMpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(hwndMpeg, GWL_USERDATA);
-				MpegReadPacket(&lpMpegWindowInfo->fileInfo, &lpMpegWindowInfo->displayedPacket);
+				//lpMpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(hwndMpeg, GWL_USERDATA);
+				//MpegReadPacket(&lpMpegWindowInfo->fileInfo, &lpMpegWindowInfo->displayedPacket); //we shouldnot be doing this here
 				return;
 			}
 			if (result==ZFT_NAV)	{
@@ -314,6 +314,34 @@ LRESULT CALLBACK MainWndProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam)
 			return MsgMenuSelect(hwnd,msg,wParam,lParam);
 		case WM_COMMAND:
 			HANDLE_WM_COMMAND(hwnd,wParam,lParam,MainWndProc_OnCommand);
+			break;
+		//Now handle the custom messages
+		//We should probably redeligate to the appropriate file
+		case ZM_OPENFILEINFO:
+			hwndInfo = InfoWindowCreateOrShow(hwndInfo, hwndMDIClient, hInstProgram);
+			InfoWindowLoadFile(hwndInfo, (char *)wParam);
+			break;
+		case ZM_OPENFILENAV:
+			hwndNav= NavWindowCreateOrShow(hwndNav, hwndMDIClient, hInstProgram);
+			NavWindowLoadFile(hwndNav, (char *)wParam);
+			break;
+		case ZM_OPENFILEMPEG:
+			hwndMpeg= MpegWindowCreateOrShow(hwndMpeg, hwndMDIClient, hInstProgram);
+			MpegWindowLoadFile(hwndMpeg, (char *)wParam);
+			break;
+		case ZM_LIST_SELECTFROMFILEANDREFRESH:
+			LISTWINDOW_INFO* infoFromListWindow;
+			DIRECTORY_LIST* entryFromListWindow;
+
+			//if (!(IsWindow(hwndList)))	{
+				hwndList = ListWindowCreateOrShow(hwndList, hwndMDIClient, hInstProgram);
+			//}
+
+			infoFromListWindow = (LISTWINDOW_INFO*)GetWindowLong(hwndList, GWL_USERDATA);
+			entryFromListWindow = ListWindowGetEntryFromFilename(infoFromListWindow, (char*)wParam);
+			RefreshAndOrSelectEntry(infoFromListWindow, entryFromListWindow, TRUE, TRUE);
+			InvalidateRect(hwndList, NULL, FALSE);
+
 			break;
 		case WM_DESTROY:
 			PostQuitMessage(0);

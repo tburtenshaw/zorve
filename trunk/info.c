@@ -1,8 +1,8 @@
+#include <stdio.h>
 #include "zorve.h"
 #include "zorveres.h"
-#include "list.h"
 #include "info.h"
-#include "stdio.h"
+
 
 //This registers the Window Class for the list files
 int InfoWindowRegisterWndClass(HINSTANCE hInst)
@@ -216,26 +216,10 @@ LRESULT CALLBACK ChildWndInfoProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 
 			break;
 		case WM_COMMAND:
-			HWND hwndListWindow;
-			LISTWINDOW_INFO* infoFromListWindow;
-			DIRECTORY_LIST* entryFromListWindow;
-
 			infoFile = (INFOFILE_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
 			if (lparam==(LPARAM)infoFile->windowInfo.buttonHwndSaveAll)	{
 				SaveInfoChanges(hwnd, infoFile);
-				hwndListWindow = ZorveGetHwndList();
-				if (!(IsWindow(hwndListWindow)))	{
-					hwndListWindow = ListWindowCreateOrShow(hwndListWindow, GetParent(hwnd), (HINSTANCE)GetWindowLong(hwnd, GWL_HINSTANCE));
-					ZorveSetHwndList(hwndListWindow);
-
-				}
-
-				infoFromListWindow = (LISTWINDOW_INFO*)GetWindowLong(hwndListWindow, GWL_USERDATA);
-				entryFromListWindow = ListWindowGetEntryFromFilename(infoFromListWindow, infoFile->filename);
-				RefreshAndOrSelectEntry(infoFromListWindow, entryFromListWindow, TRUE, TRUE);
-				InvalidateRect(hwndListWindow, NULL, FALSE);
-
-
+				SendMessage(GetParent(GetParent(hwnd)), ZM_LIST_SELECTFROMFILEANDREFRESH, (WPARAM)infoFile->filename, (LPARAM)0);
 			}
 			if (lparam==(LPARAM)infoFile->windowInfo.buttonHwndRevert)
 				InfoWindowLoadFile(hwnd, infoFile->filename);
