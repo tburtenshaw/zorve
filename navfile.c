@@ -1,4 +1,4 @@
-#include "stdio.h"
+#include <stdio.h>
 #include "zorveres.h"
 #include "zorve.h"
 #include "navfile.h"
@@ -103,9 +103,6 @@ LRESULT CALLBACK ChildWndNavProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam)
 			break;
 		case WM_DESTROY:
 			NavWindowUnloadFile(hwnd);
-			break;
-		case WM_COMMAND:
-			MessageBox(hwnd, "cmd","cmd",0);
 			break;
 		default:
 			return DefMDIChildProc(hwnd, msg, wparam, lparam);
@@ -436,65 +433,68 @@ int NavRecordListViewPaint(HWND hwnd)
 						sprintf(buffer, "%i (0x%x)",navWindowInfo->firstDisplayedRecord+i, (navWindowInfo->firstDisplayedRecord+i)*sizeof(NAV_RECORD));
 						break;
 					case 1:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s1);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s0);
 						break;
 					case 2:
-						sprintf(buffer, "%04x", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].twobytes2);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].twobytes2 & 0xFF);
 						break;
 					case 3:
-						sprintf(buffer, "%04x", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s3);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].twobytes2 >> 8);
 						break;
 					case 4:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s4);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].twobytes4 & 0xFF);
 						break;
 					case 5:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l5zero);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].twobytes4 >> 8);
 						break;
 					case 6:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l6);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s6);
 						break;
 					case 7:
-						//The time stamp is the 300x the number of 1/27000000ths, Olevia stores this as a 32 bit value (half the original)
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l7);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].offsetlo);
 						break;
 					case 8:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s8);
+						//The time stamp is the 300x the number of 1/27000000ths, Olevia stores this as a 32 bit value (half the original)
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].timer);
 						break;
 					case 9:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s9zero);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s14);
 						break;
 					case 10:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l10);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s16);
 						break;
 					case 11:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l11zero);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].milliseconds);
 						break;
 					case 12:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l12);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l1Czero);
 						break;
 					case 13:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s13);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l20);
 						break;
 					case 14:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s14zero);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s24);
 						break;
 					case 15:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l15zero);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s26zero);
 						break;
 					case 16:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l16zero);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l28zero);
 						break;
 					case 17:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l17zero);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l2Czero);
 						break;
 					case 18:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l18zero);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l30zero);
 						break;
 					case 19:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l19zero);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l34zero);
 						break;
 					case 20:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l20zero);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l38zero);
+						break;
+					case 21:
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l3Czero);
 						break;
 
 					default:
@@ -544,50 +544,52 @@ int NavRecordListViewPaint(HWND hwnd)
 void NavInitiateColumnWidths(NAVWINDOW_INFO * navWindowInfo)
 {
 
-	navWindowInfo->widthColumn[0]=100;
-	navWindowInfo->widthColumn[1]=70;
-	navWindowInfo->widthColumn[2]=60;
-	navWindowInfo->widthColumn[3]=70;
-	navWindowInfo->widthColumn[4]=0;
-	navWindowInfo->widthColumn[5]=0;
-	navWindowInfo->widthColumn[6]=90;
-	navWindowInfo->widthColumn[7]=100;
+	navWindowInfo->widthColumn[0]=110;
+	navWindowInfo->widthColumn[1]=80;
+	navWindowInfo->widthColumn[2]=40;
+	navWindowInfo->widthColumn[3]=40;
+	navWindowInfo->widthColumn[4]=40;
+	navWindowInfo->widthColumn[5]=40;
+	navWindowInfo->widthColumn[6]=0;
+	navWindowInfo->widthColumn[7]=80;
 	navWindowInfo->widthColumn[8]=80;
-	navWindowInfo->widthColumn[9]=0;
-	navWindowInfo->widthColumn[10]=80;
-	navWindowInfo->widthColumn[11]=0;
-	navWindowInfo->widthColumn[12]=80;
-	navWindowInfo->widthColumn[13]=0;
-	navWindowInfo->widthColumn[14]=0;
+	navWindowInfo->widthColumn[9]=70;
+	navWindowInfo->widthColumn[10]=40;
+	navWindowInfo->widthColumn[11]=80;
+	navWindowInfo->widthColumn[12]=0;
+	navWindowInfo->widthColumn[13]=70;
+	navWindowInfo->widthColumn[14]=40;
 	navWindowInfo->widthColumn[15]=0;
 	navWindowInfo->widthColumn[16]=0;
 	navWindowInfo->widthColumn[17]=0;
 	navWindowInfo->widthColumn[18]=0;
 	navWindowInfo->widthColumn[19]=0;
 	navWindowInfo->widthColumn[20]=0;
+	navWindowInfo->widthColumn[21]=0;
 
 	sprintf(navWindowInfo->columnTitle[0], "Number");
-	sprintf(navWindowInfo->columnTitle[1], "s1");
-	sprintf(navWindowInfo->columnTitle[2], "2b");
-	sprintf(navWindowInfo->columnTitle[3], "s3");
-	sprintf(navWindowInfo->columnTitle[4], "s4");
-	sprintf(navWindowInfo->columnTitle[5], "l5");
-	sprintf(navWindowInfo->columnTitle[6], "l6-offset");
-	sprintf(navWindowInfo->columnTitle[7], "l7-timer");
-	sprintf(navWindowInfo->columnTitle[8], "s8");
-	sprintf(navWindowInfo->columnTitle[9], "s9");
-	sprintf(navWindowInfo->columnTitle[10], "l10-millisec");
-	sprintf(navWindowInfo->columnTitle[11], "l11");
-	sprintf(navWindowInfo->columnTitle[12], "l12");
-	sprintf(navWindowInfo->columnTitle[13], "l13");
-	sprintf(navWindowInfo->columnTitle[14], "l14");
-	sprintf(navWindowInfo->columnTitle[15], "l15");
-	sprintf(navWindowInfo->columnTitle[16], "l16");
-	sprintf(navWindowInfo->columnTitle[17], "l17");
-	sprintf(navWindowInfo->columnTitle[18], "l18");
-	sprintf(navWindowInfo->columnTitle[19], "l19");
-	sprintf(navWindowInfo->columnTitle[20], "l20");
-	sprintf(navWindowInfo->columnTitle[21], "empty");
+	sprintf(navWindowInfo->columnTitle[1], "Short0");
+	sprintf(navWindowInfo->columnTitle[2], "Byte2");
+	sprintf(navWindowInfo->columnTitle[3], "Byte3");
+	sprintf(navWindowInfo->columnTitle[4], "Byte4");
+	sprintf(navWindowInfo->columnTitle[5], "Byte5");
+	sprintf(navWindowInfo->columnTitle[6], "Short6");
+	sprintf(navWindowInfo->columnTitle[7], "Offset");
+	sprintf(navWindowInfo->columnTitle[8], "Timer");
+	sprintf(navWindowInfo->columnTitle[9], "Short14");
+	sprintf(navWindowInfo->columnTitle[10], "Short16");
+	sprintf(navWindowInfo->columnTitle[11], "Milliseconds");
+	sprintf(navWindowInfo->columnTitle[12], "Long1Cz");
+	sprintf(navWindowInfo->columnTitle[13], "Long20");
+	sprintf(navWindowInfo->columnTitle[14], "Short24");
+	sprintf(navWindowInfo->columnTitle[15], "Short26");
+	sprintf(navWindowInfo->columnTitle[16], "Long28z");
+	sprintf(navWindowInfo->columnTitle[17], "Long2Cz");
+	sprintf(navWindowInfo->columnTitle[18], "Long30z");
+	sprintf(navWindowInfo->columnTitle[19], "Long34z");
+	sprintf(navWindowInfo->columnTitle[20], "Long38z");
+	sprintf(navWindowInfo->columnTitle[21], "Long3Cz");
+	sprintf(navWindowInfo->columnTitle[22], "empty");
 
 
 	return;
@@ -625,7 +627,7 @@ int NavRecordHeaderPaint(HWND hwnd)
 	GetTextMetrics(hdc, &textMetric);
 	heightFont= textMetric.tmHeight;
 
-	SetTextColor(hdc, RGB_ZINNY_DARKBLUE);
+	SetTextColor(hdc, RGB_ZINNY_BLACK);
 	SetBkColor(hdc, RGB_ZINNY_MIDPURPLE);
 
 
@@ -848,7 +850,7 @@ int NavWindowLoadFile(HWND hwnd, char *openfilename)
 	ReadRecordsFromNavFile(navWindowInfo, navWindowInfo->fileInfo.numRecords-1, &lastRecord, 1);
 
 //	navWindowInfo->fileInfo.estTimeSpanSeconds=(double)(lastRecord.l7-firstRecord.l7) / 45000;
-	navWindowInfo->fileInfo.estTimeSpanSeconds=(double)(lastRecord.l10)/1000;
+	navWindowInfo->fileInfo.estTimeSpanSeconds=(double)(lastRecord.milliseconds)/1000;
 
 	//These should be set up before loading.
 	UpdateBuffer(navWindowInfo);

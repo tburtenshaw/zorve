@@ -24,6 +24,49 @@ int MpegWindowRegisterWndClass(HINSTANCE hInst)
 
 	if (!RegisterClass((LPWNDCLASS)&wc))
 		return 0;
+
+	wc.style         = 0;
+	wc.lpfnWndProc   = (WNDPROC)MpegFileInfoProc;
+	wc.cbClsExtra    = 0;
+	wc.cbWndExtra    = 20;
+	wc.hInstance     = hInst;                      // Owner of this class
+	wc.hIcon         = NULL;
+	wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
+	wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1); // Default color
+	wc.lpszMenuName  = NULL;
+	wc.lpszClassName = "MpegFileInfoClass";
+
+	if (!RegisterClass((LPWNDCLASS)&wc))
+		return 0;
+
+	wc.style         = 0;
+	wc.lpfnWndProc   = (WNDPROC)MpegFileDetailProc;
+	wc.cbClsExtra    = 0;
+	wc.cbWndExtra    = 20;
+	wc.hInstance     = hInst;                      // Owner of this class
+	wc.hIcon         = NULL;
+	wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
+	wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1); // Default color
+	wc.lpszMenuName  = NULL;
+	wc.lpszClassName = "MpegFileDetailClass";
+
+	if (!RegisterClass((LPWNDCLASS)&wc))
+		return 0;
+
+	wc.style         = 0;
+	wc.lpfnWndProc   = (WNDPROC)MpegPacketInfoProc;
+	wc.cbClsExtra    = 0;
+	wc.cbWndExtra    = 20;
+	wc.hInstance     = hInst;                      // Owner of this class
+	wc.hIcon         = NULL;
+	wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
+	wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1); // Default color
+	wc.lpszMenuName  = NULL;
+	wc.lpszClassName = "MpegPacketInfoClass";
+
+	if (!RegisterClass((LPWNDCLASS)&wc))
+		return 0;
+
 	return 1;
 }
 
@@ -42,44 +85,24 @@ LRESULT CALLBACK ChildWndMpegProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 			SetWindowLong(hwnd, GWL_USERDATA, (long)mpegWindowInfo); //set the custom long of the window to remember it
 			memset(mpegWindowInfo, 0, sizeof(MPEGWINDOW_INFO));	//make sure everything set to zero
 
-			mpegWindowInfo->hwndNextButton =	CreateWindow("BUTTON", "Next record",
-				    					WS_CHILD|WS_VISIBLE|WS_TABSTOP|WS_BORDER|BS_PUSHBUTTON,
-									    20,250,130,30, hwnd, NULL, hInst, NULL);
-
-
+			mpegWindowInfo->hwndFileInfo = CreateWindow("MpegFileInfoClass", "fileinfo",
+										WS_CHILD|WS_VISIBLE,
+										0,0,300,100, hwnd, NULL, hInst,NULL);
+			mpegWindowInfo->hwndFileDetail = CreateWindow("MpegFileDetailClass", "filedetail",
+										WS_CHILD|WS_VISIBLE,
+										300,0,200,100, hwnd, NULL, hInst,NULL);
+			mpegWindowInfo->hwndBlockInfo = CreateWindow("MpegPacketInfoClass", "blockinfo",
+										WS_CHILD|WS_VISIBLE,
+										0,100,250,200, hwnd, NULL, hInst,NULL);
 			break;
 		case WM_PAINT:
 			MpegWindowPaint(hwnd);
 			break;
-		case WM_COMMAND:
-			mpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);	//get the point to window info
-			if (lparam==(LPARAM)mpegWindowInfo->hwndNextButton)	{
-				if (mpegWindowInfo->fileInfo.loadingInBackground)	{
-					WaitForSingleObject(mpegWindowInfo->fileInfo.hFileAccessMutex,INFINITE);
-
-					tempOffset=mpegWindowInfo->fileInfo.offset;	//remember the offset
-
-					mpegWindowInfo->fileInfo.offset=mpegWindowInfo->fileInfo.displayOffset; //move to the display offset
-					SetFilePointer(mpegWindowInfo->fileInfo.hMpegFile, mpegWindowInfo->fileInfo.displayOffset, 0, FILE_BEGIN);
-					MpegReadPacket(&mpegWindowInfo->fileInfo, &mpegWindowInfo->displayedPacket);//readit
-					mpegWindowInfo->fileInfo.displayOffset=mpegWindowInfo->fileInfo.offset;
-
-					mpegWindowInfo->fileInfo.offset=tempOffset;	//set the offset back to what it was
-					SetFilePointer(mpegWindowInfo->fileInfo.hMpegFile, tempOffset,0, FILE_BEGIN);
-
-					ReleaseMutex(mpegWindowInfo->fileInfo.hFileAccessMutex);
-				}
-				else	{
-					mpegWindowInfo->fileInfo.offset=mpegWindowInfo->fileInfo.displayOffset;
-					MpegReadPacket(&mpegWindowInfo->fileInfo, &mpegWindowInfo->displayedPacket);
-					mpegWindowInfo->fileInfo.displayOffset=mpegWindowInfo->fileInfo.offset;
-				}
-
-				InvalidateRect(hwnd, NULL, FALSE);
-			}
-			break;
 		case WM_ERASEBKGND:
 			return 1;
+			break;
+		case WM_DESTROY:
+			MpegPrepareForClose(hwnd);
 			break;
 	}
 	return DefMDIChildProc(hwnd, msg, wparam, lparam);
@@ -166,7 +189,7 @@ int MpegWindowLoadFile(HWND hwnd, char * mpegFile)
 
 	//Now start a thread that gradually loads in statistical information about the mpeg.
 	mpegWindowInfo->fileInfo.hFileAccessMutex = CreateMutex(NULL, FALSE, "fileaccessmutex");
-	mpegWindowInfo->fileInfo.hBackgroundThread=CreateThread(NULL, (SIZE_T)0, (LPTHREAD_START_ROUTINE)MpegReadFileStats, &mpegWindowInfo->fileInfo, 0, NULL);
+	mpegWindowInfo->fileInfo.hBackgroundThread = CreateThread(NULL, (SIZE_T)0, (LPTHREAD_START_ROUTINE)MpegReadFileStats, &mpegWindowInfo->fileInfo, 0, NULL);
 	//MpegReadFileStats(&mpegWindowInfo->fileInfo);	//override the background thread for debugging
 
 	return 0;
@@ -186,6 +209,8 @@ DWORD WINAPI MpegReadFileStats(MPEGFILE_INFO *mpegFileInfo)
 	mpegFileInfo->loadingInBackground = TRUE;
 
 	while (offset < mpegFileInfo->filesize)	{
+		if (mpegFileInfo->stopThreadNow)
+			return 0;
 		WaitForSingleObject(mpegFileInfo->hFileAccessMutex,INFINITE);
 		MpegReadPacket(mpegFileInfo, &packet);
 		mpegFileInfo->countPackets++;
@@ -233,11 +258,11 @@ int MpegTSFindSyncByte(HANDLE hFile, long * syncbyteOffset)
 
 	BOOL readResult;
 	int occurence;
-	long offset;
+	unsigned long offset;
 	int justskipped;	//if we have just found one and skipped some bytes, we'll go back
 
 	LARGE_INTEGER largeint_filesize;
-	long filesize;
+	unsigned long filesize;
 
 	GetFileSizeEx(hFile, &largeint_filesize);
 	filesize=largeint_filesize.LowPart;
@@ -417,3 +442,315 @@ HWND MpegWindowCreate(HWND hwndMDIClient, HINSTANCE hInst)
 	return hwndChild;
 }
 
+int MpegPrepareForClose(HWND hwnd)
+{
+	MPEGWINDOW_INFO *mpegWindowInfo;
+
+	mpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);	//get the point to window info
+
+	//Signal to close the thread. Then wait.
+	if (mpegWindowInfo->fileInfo.loadingInBackground)	{
+		mpegWindowInfo->fileInfo.stopThreadNow=TRUE;
+		WaitForSingleObject(mpegWindowInfo->fileInfo.hBackgroundThread, INFINITE);
+	}
+
+	//Close the file
+	CloseHandle(mpegWindowInfo->fileInfo.hMpegFile);
+
+	//Free the window structure
+	free(mpegWindowInfo);
+
+	return 0;
+}
+
+LRESULT CALLBACK MpegFileInfoProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam)
+{
+
+	switch(msg) {
+		case WM_PAINT:
+			MpegFileInfoPaint(hwnd);
+			break;
+		case WM_ERASEBKGND:
+			return 1;
+			break;
+	}
+
+	return DefMDIChildProc(hwnd, msg, wParam, lParam);
+}
+
+LRESULT CALLBACK MpegFileDetailProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam)
+{
+
+	switch(msg) {
+		case WM_PAINT:
+			MpegFileDetailPaint(hwnd);
+			break;
+		case WM_ERASEBKGND:
+			return 1;
+			break;
+	}
+
+	return DefMDIChildProc(hwnd, msg, wParam, lParam);
+}
+
+LRESULT CALLBACK MpegPacketInfoProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam)
+{
+	HINSTANCE hInst;
+	MPEGWINDOW_INFO *mpegWindowInfo;
+
+	switch(msg) {
+		case WM_CREATE:
+			hInst=((LPCREATESTRUCT)lParam)->hInstance;	//get the hinstance for use when creating the child window
+
+			mpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);	//get the point to window info
+			mpegWindowInfo->hwndNextButton =	CreateWindow("BUTTON", "Next",
+					   					WS_CHILD|WS_VISIBLE|WS_TABSTOP|WS_BORDER|BS_PUSHBUTTON,
+									    20,50,60,30, hwnd, NULL, hInst, NULL);
+			break;
+
+		case WM_PAINT:
+			MpegPacketInfoPaint(hwnd);
+			break;
+		case WM_ERASEBKGND:
+			return 1;
+			break;
+		case WM_COMMAND:
+			unsigned long tempOffset;
+			mpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);	//get the point to window info
+			if (lParam==(LPARAM)mpegWindowInfo->hwndNextButton)	{
+				if (mpegWindowInfo->fileInfo.loadingInBackground)	{
+					WaitForSingleObject(mpegWindowInfo->fileInfo.hFileAccessMutex,INFINITE);
+
+					tempOffset=mpegWindowInfo->fileInfo.offset;	//remember the offset
+
+					mpegWindowInfo->fileInfo.offset=mpegWindowInfo->fileInfo.displayOffset; //move to the display offset
+					SetFilePointer(mpegWindowInfo->fileInfo.hMpegFile, mpegWindowInfo->fileInfo.displayOffset, 0, FILE_BEGIN);
+					MpegReadPacket(&mpegWindowInfo->fileInfo, &mpegWindowInfo->displayedPacket);//readit
+					mpegWindowInfo->fileInfo.displayOffset=mpegWindowInfo->fileInfo.offset;
+
+					mpegWindowInfo->fileInfo.offset=tempOffset;	//set the offset back to what it was
+					SetFilePointer(mpegWindowInfo->fileInfo.hMpegFile, tempOffset,0, FILE_BEGIN);
+
+					ReleaseMutex(mpegWindowInfo->fileInfo.hFileAccessMutex);
+				}
+				else	{
+					mpegWindowInfo->fileInfo.offset=mpegWindowInfo->fileInfo.displayOffset;
+					MpegReadPacket(&mpegWindowInfo->fileInfo, &mpegWindowInfo->displayedPacket);
+					mpegWindowInfo->fileInfo.displayOffset=mpegWindowInfo->fileInfo.offset;
+				}
+
+				InvalidateRect(hwnd, NULL, FALSE);
+			}
+			break;
+
+	}
+
+	return DefMDIChildProc(hwnd, msg, wParam, lParam);
+}
+
+int MpegFileInfoPaint(HWND hwnd)
+{
+	MPEGWINDOW_INFO *mpegWindowInfo;
+
+	HDC	hdc;
+	PAINTSTRUCT ps;
+	RECT clientRect;
+	RECT outputRect;
+
+	HFONT hMidFont;
+	TEXTMETRIC textMetric;
+
+	char buffer[255];
+	int y=ZORVEWINDOWMARGIN;
+	int heightMidFont=16;
+
+	mpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);	//get the point to window info
+
+	GetClientRect(hwnd, &clientRect);
+	hdc=BeginPaint(hwnd, &ps);
+
+	SetBkColor(hdc, RGB_ZINNY_MIDPURPLE);
+	SetTextColor(hdc, RGB_ZINNY_BLACK);
+
+	hMidFont = CreateFont(
+				MulDiv(10, GetDeviceCaps(hdc, LOGPIXELSY), 72),
+				0,0,0,FW_NORMAL,
+				FALSE,FALSE,FALSE,
+				DEFAULT_CHARSET,OUT_OUTLINE_PRECIS,
+                CLIP_DEFAULT_PRECIS,NONANTIALIASED_QUALITY, VARIABLE_PITCH|FF_SWISS,"MS Shell Dlg");
+	SelectObject(hdc,hMidFont);
+
+
+	GetTextMetrics(hdc, &textMetric);
+	heightMidFont= textMetric.tmHeight;
+
+
+	outputRect.left=clientRect.left;
+	outputRect.right=clientRect.right;
+	outputRect.top=clientRect.top;
+	outputRect.bottom=clientRect.top+y+heightMidFont;
+
+	//File name
+	sprintf(buffer, "%s",  mpegWindowInfo->fileInfo.filename);
+	ExtTextOut(hdc, ZORVEWINDOWMARGIN,y,ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
+	y+=heightMidFont;
+
+	//Size
+	outputRect.top=y;
+	outputRect.bottom=y+heightMidFont;
+	sprintf(buffer, "Size: %u bytes",  mpegWindowInfo->fileInfo.filesize);
+	ExtTextOut(hdc, ZORVEWINDOWMARGIN,y,ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
+	y+=heightMidFont;
+
+	//Blocks
+	outputRect.top=y;
+	outputRect.bottom=y+heightMidFont;
+	if (mpegWindowInfo->fileInfo.loadingInBackground)
+		sprintf(buffer, "Packets: %u (est.)",  mpegWindowInfo->fileInfo.filesize/188);
+	else
+		sprintf(buffer, "Packets: %u",  mpegWindowInfo->fileInfo.countPackets);
+
+	ExtTextOut(hdc, ZORVEWINDOWMARGIN,y,ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
+	y+=heightMidFont;
+
+
+
+	//Fill to the bottom of this window
+	outputRect.top=y;
+	outputRect.bottom=clientRect.bottom;
+	ExtTextOut(hdc, 0,0,ETO_OPAQUE, &outputRect, NULL, 0, NULL);
+
+	EndPaint(hwnd, &ps);
+
+	return 0;
+}
+
+int MpegFileDetailPaint(HWND hwnd)
+{
+	MPEGWINDOW_INFO *mpegWindowInfo;
+
+	HDC	hdc;
+	PAINTSTRUCT ps;
+	RECT clientRect;
+	RECT outputRect;
+
+	HFONT hMidFont;
+	TEXTMETRIC textMetric;
+
+	char buffer[255];
+	int y=ZORVEWINDOWMARGIN;
+	int heightMidFont=16;
+
+	mpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);	//get the point to window info
+
+	GetClientRect(hwnd, &clientRect);
+	hdc=BeginPaint(hwnd, &ps);
+
+	SetBkColor(hdc, RGB_ZINNY_MIDPURPLE);
+	SetTextColor(hdc, RGB_ZINNY_BLACK);
+
+	hMidFont = CreateFont(
+				MulDiv(10, GetDeviceCaps(hdc, LOGPIXELSY), 72),
+				0,0,0,FW_NORMAL,
+				FALSE,FALSE,FALSE,
+				DEFAULT_CHARSET,OUT_OUTLINE_PRECIS,
+                CLIP_DEFAULT_PRECIS,NONANTIALIASED_QUALITY, VARIABLE_PITCH|FF_SWISS,"MS Shell Dlg");
+	SelectObject(hdc,hMidFont);
+
+
+	GetTextMetrics(hdc, &textMetric);
+	heightMidFont= textMetric.tmHeight;
+
+
+	outputRect.left=clientRect.left;
+	outputRect.right=clientRect.right;
+	outputRect.top=clientRect.top;
+	outputRect.bottom=clientRect.top+y+heightMidFont;
+
+	//Percent scanned
+	sprintf(buffer, "Scanning: %i%%", mpegWindowInfo->fileInfo.countPackets*100/(mpegWindowInfo->fileInfo.filesize/188));
+	ExtTextOut(hdc, ZORVEWINDOWMARGIN,y,ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
+	y+=heightMidFont;
+
+	//Size
+//	outputRect.top=y;
+//	outputRect.bottom=y+heightMidFont;
+//	sprintf(buffer, "Size: %u bytes",  mpegWindowInfo->fileInfo.filesize);
+//	ExtTextOut(hdc, ZORVEWINDOWMARGIN,y,ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
+//	y+=heightMidFont;
+
+
+	//Fill to the bottom of this window
+	outputRect.top=y;
+	outputRect.bottom=clientRect.bottom;
+	ExtTextOut(hdc, 0,0,ETO_OPAQUE, &outputRect, NULL, 0, NULL);
+
+	EndPaint(hwnd, &ps);
+
+	return 0;
+}
+
+int MpegPacketInfoPaint(HWND hwnd)
+{
+	MPEGWINDOW_INFO *mpegWindowInfo;
+
+	HDC	hdc;
+	PAINTSTRUCT ps;
+	RECT clientRect;
+	RECT outputRect;
+
+	HFONT hMidFont;
+	TEXTMETRIC textMetric;
+
+	char buffer[255];
+	int y=ZORVEWINDOWMARGIN;
+	int heightMidFont=16;
+
+	mpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);	//get the point to window info
+
+	GetClientRect(hwnd, &clientRect);
+	hdc=BeginPaint(hwnd, &ps);
+
+	SetBkColor(hdc, RGB_ZINNY_MIDPURPLE);
+	SetTextColor(hdc, RGB_ZINNY_BLACK);
+
+	hMidFont = CreateFont(
+				MulDiv(10, GetDeviceCaps(hdc, LOGPIXELSY), 72),
+				0,0,0,FW_NORMAL,
+				FALSE,FALSE,FALSE,
+				DEFAULT_CHARSET,OUT_OUTLINE_PRECIS,
+                CLIP_DEFAULT_PRECIS,NONANTIALIASED_QUALITY, VARIABLE_PITCH|FF_SWISS,"MS Shell Dlg");
+	SelectObject(hdc,hMidFont);
+
+
+	GetTextMetrics(hdc, &textMetric);
+	heightMidFont= textMetric.tmHeight;
+
+
+	outputRect.left=clientRect.left;
+	outputRect.right=clientRect.right;
+	outputRect.top=clientRect.top;
+	outputRect.bottom=clientRect.top+y+heightMidFont;
+
+	//Block number
+	sprintf(buffer, "Block: %u", mpegWindowInfo->fileInfo.displayOffset/188);
+	ExtTextOut(hdc, ZORVEWINDOWMARGIN,y,ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
+	y+=heightMidFont;
+
+	//Size
+	outputRect.top=y;
+	outputRect.bottom=y+heightMidFont;
+	sprintf(buffer, "PID: $%03x", mpegWindowInfo->displayedPacket.pid);
+	ExtTextOut(hdc, ZORVEWINDOWMARGIN,y,ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
+	y+=heightMidFont;
+
+
+	//Fill to the bottom of this window
+	outputRect.top=y;
+	outputRect.bottom=clientRect.bottom;
+	ExtTextOut(hdc, 0,0,ETO_OPAQUE, &outputRect, NULL, 0, NULL);
+
+	EndPaint(hwnd, &ps);
+
+	return 0;
+}

@@ -2,7 +2,7 @@
 #include "zorve.h"
 #include "zorveres.h"
 #include "list.h"
-#include "info.h"
+//#include "info.h"
 
 //This registers the Window Class for the list files
 int ListWindowRegisterWndClasses(HINSTANCE hInst)
@@ -114,8 +114,6 @@ LRESULT CALLBACK ChildWndListProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 			SetWindowLong(hwnd, GWL_USERDATA, (long)lpListWindowInfo); //set the custom long of the window to remember it
 			memset(lpListWindowInfo, 0, sizeof(LISTWINDOW_INFO));	//make sure everything set to zero
 
-			//lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
-
 			lpDirectoryInfo=&lpListWindowInfo->directoryInfo;	//the directory pointer is set to the location in the windowinfostruct
 			lpDirectoryInfo->parentListWindowInfo = lpListWindowInfo;
 			SetListDirectory(lpDirectoryInfo, NULL);	//Set the directory to the default, this will call another function that fills the linked list
@@ -201,8 +199,33 @@ LRESULT CALLBACK ListChildFileProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lpara
 			InvalidateRect(hwnd, NULL, FALSE);
 			break;
 		case WM_LBUTTONDBLCLK:
-			MessageBox(hwnd, "Double clicking will open up MPEG and NAV", "List Message",0);
-			return 0;
+			char buffer[255];
+			lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);
+			lpDirectoryInfo=&lpListWindowInfo->directoryInfo;
+
+			point.x=GET_X_LPARAM(lparam);
+			point.y=GET_Y_LPARAM(lparam);
+
+			llist=lpDirectoryInfo->first;
+			while (llist)	{
+				if (PtInRect(&llist->boundingRect, point))	{
+
+					sprintf(buffer,"%s\\.%s.nav", lpDirectoryInfo->directoryName, llist->shortfilename);
+					//MessageBox(hwnd,buffer,"load this",0);
+					SendMessage(GetParent(GetParent(GetParent(hwnd))), ZM_OPENFILENAV, (WPARAM)buffer, (LPARAM)0);
+
+					sprintf(buffer,"%s\\.%s.mpg", lpDirectoryInfo->directoryName, llist->shortfilename);
+					//MessageBox(hwnd,buffer,"load this",0);
+					SendMessage(GetParent(GetParent(GetParent(hwnd))), ZM_OPENFILEMPEG, (WPARAM)buffer, (LPARAM)0);
+
+					lpDirectoryInfo->parentListWindowInfo->selectedLine=llist->index;
+					InvalidateRect(hwnd, &lpDirectoryInfo->parentListWindowInfo->oldBoundingRect, FALSE);
+					InvalidateRect(hwnd, &llist->boundingRect, FALSE);
+
+				}
+
+				llist=llist->next;
+			}
 			break;
 		case WM_VSCROLL:
 			ListWindowHandleVScroll(hwnd, wparam, lparam);
@@ -217,21 +240,12 @@ LRESULT CALLBACK ListChildFileProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lpara
 			llist=lpDirectoryInfo->first;
 			while (llist)	{
 				if (PtInRect(&llist->boundingRect, point))	{
-					//NOTE: I NEED TO GET RID OF ALL THIS INTERLINKING.
-					//PLANNING TO REPLACE WITH WM_NOTIFYs AND LETTING zorve.c handle it.
-
-					hwndInfo = (HWND)ZorveGetHwndInfo();
-					hwndInfo = InfoWindowCreateOrShow(hwndInfo, GetParent(GetParent(hwnd)), (HINSTANCE)GetWindowLong(hwnd, GWL_HINSTANCE));
-					ZorveSetHwndInfo(hwndInfo);
+					SendMessage(GetParent(GetParent(GetParent(hwnd))), ZM_OPENFILEINFO, (WPARAM)llist->filename, (LPARAM)0);
 					lpDirectoryInfo->parentListWindowInfo->selectedLine=llist->index;
 					InvalidateRect(hwnd, &lpDirectoryInfo->parentListWindowInfo->oldBoundingRect, FALSE);
 					InvalidateRect(hwnd, &llist->boundingRect, FALSE);
 
-
-					InfoWindowLoadFile(hwndInfo, llist->filename);
 				}
-
-					//MessageBox(0,llist->filename,"3",0);
 
 				llist=llist->next;
 			}
