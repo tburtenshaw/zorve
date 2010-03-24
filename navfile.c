@@ -451,7 +451,10 @@ int NavRecordListViewPaint(HWND hwnd)
 						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s6);
 						break;
 					case 7:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].offsetlo);
+						UnsignedLongLongToString((ULONGLONG)navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].offsetlo +
+					   							   (ULONGLONG)navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].offsethi * (ULONGLONG)0x100000000,
+												  	 buffer);
+						//sprintf(buffer, "%u %u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].offsetlo,navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].offsethi);
 						break;
 					case 8:
 						//The time stamp is the 300x the number of 1/27000000ths, Olevia stores this as a 32 bit value (half the original)
@@ -818,10 +821,9 @@ int NavScrollUpdate(HWND hwnd, NAVWINDOW_INFO * navWindowInfo)
 	return 0;
 }
 
-int NavWindowLoadFile(HWND hwnd, char *openfilename)
+HANDLE NavWindowLoadFile(HWND hwnd, char *openfilename)
 {
 	NAVWINDOW_INFO *navWindowInfo;
-//	NAV_RECORD firstRecord;
 	NAV_RECORD lastRecord;
 
 	navWindowInfo=(NAVWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
@@ -835,26 +837,25 @@ int NavWindowLoadFile(HWND hwnd, char *openfilename)
 		InvalidateRect(hwnd, NULL, FALSE);
 		InvalidateRect(navWindowInfo->hwndRecordList, NULL, FALSE);
 		InvalidateRect(navWindowInfo->hwndRecordListHeader, NULL, FALSE);
-
 	}
 
 	lstrcpy(navWindowInfo->fileInfo.filename, openfilename);
 	navWindowInfo->fileInfo.hNavFile = CreateFile(openfilename, GENERIC_READ, FILE_SHARE_READ, NULL,
 				OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS, NULL);
 
+	if (navWindowInfo->fileInfo.hNavFile == INVALID_HANDLE_VALUE)
+		return INVALID_HANDLE_VALUE;
 
 	navWindowInfo->fileInfo.filesize=GetFileSize(navWindowInfo->fileInfo.hNavFile,NULL);
 	navWindowInfo->fileInfo.numRecords=navWindowInfo->fileInfo.filesize/sizeof(NAV_RECORD);
 
-//	ReadRecordsFromNavFile(navWindowInfo, 0, &firstRecord, 1);
 	ReadRecordsFromNavFile(navWindowInfo, navWindowInfo->fileInfo.numRecords-1, &lastRecord, 1);
 
-//	navWindowInfo->fileInfo.estTimeSpanSeconds=(double)(lastRecord.l7-firstRecord.l7) / 45000;
 	navWindowInfo->fileInfo.estTimeSpanSeconds=(double)(lastRecord.milliseconds)/1000;
 
 	//These should be set up before loading.
 	UpdateBuffer(navWindowInfo);
-	return 0;
+	return navWindowInfo->fileInfo.hNavFile;
 
 }
 
