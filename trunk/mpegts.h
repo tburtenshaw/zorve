@@ -55,9 +55,9 @@ struct sMpegFileInfo	{
 	unsigned long filesize;
 	char filename[MAX_PATH];
 
-	unsigned long firstSyncByte;
-	unsigned long offset;
-	unsigned long displayOffset;
+	ULONGLONG firstSyncByte;
+	ULONGLONG offset;
+	ULONGLONG displayOffset;
 
 	HANDLE hBackgroundThread;
 	HANDLE hFileAccessMutex;
@@ -80,6 +80,7 @@ struct sMpegWindowInfo	{
 	HWND	hwndFileInfo;
 	HWND	hwndFileDetail;
 	HWND	hwndBlockInfo;
+	HWND	hwndBlockDetail;
 	HWND	hwndBlockSlideSelector;
 	HWND	hwndHexView;
 	HWND	hwndNextButton;
@@ -91,6 +92,7 @@ LRESULT CALLBACK ChildWndMpegProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam
 LRESULT CALLBACK MpegFileInfoProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam);
 LRESULT CALLBACK MpegFileDetailProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam);
 LRESULT CALLBACK MpegPacketInfoProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam);
+LRESULT CALLBACK MpegPacketDetailProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam);
 
 HWND MpegWindowCreateOrShow(HWND hwnd, HWND hwndChild, HINSTANCE hInst);
 HWND MpegWindowCreate(HWND hwndMDIClient, HINSTANCE hInst);
@@ -101,8 +103,8 @@ int MpegFileDetailPaint(HWND hwnd);
 int MpegPacketInfoPaint(HWND hwnd);
 
 
-int MpegWindowLoadFile(HWND hwnd, char * mpegFile);
-int MpegTSFindSyncByte(HANDLE hFile, long * syncbyteOffset);
+HANDLE MpegWindowLoadFile(HWND hwnd, char * mpegFile);
+int MpegTSFindSyncByte(HANDLE hFile, ULONGLONG * syncbyteOffset);
 int MpegReadPacket(MPEGFILE_INFO *mpegFileInfo, TS_PACKET *packet);
 int MpegPrepareForClose(HWND hwnd);
 

@@ -2,7 +2,6 @@
 #include "zorve.h"
 #include "zorveres.h"
 #include "list.h"
-//#include "info.h"
 
 //This registers the Window Class for the list files
 int ListWindowRegisterWndClasses(HINSTANCE hInst)

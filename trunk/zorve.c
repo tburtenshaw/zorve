@@ -322,10 +322,18 @@ LRESULT CALLBACK MainWndProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam)
 			InfoWindowLoadFile(hwndInfo, (char *)wParam);
 			break;
 		case ZM_OPENFILENAV:
+			if (GetFileAttributes((char *)wParam) == INVALID_FILE_ATTRIBUTES)	{
+				MessageBox(hwnd, "Unable to load .nav file.", "Zorve", 0);
+				return 1;
+			}
 			hwndNav= NavWindowCreateOrShow(hwndNav, hwndMDIClient, hInstProgram);
 			NavWindowLoadFile(hwndNav, (char *)wParam);
 			break;
 		case ZM_OPENFILEMPEG:
+			if (GetFileAttributes((char *)wParam) == INVALID_FILE_ATTRIBUTES)	{
+				MessageBox(hwnd, "Unable to load MPEG-TS file.", "Zorve", MB_ICONEXCLAMATION|MB_RETRYCANCEL);
+				return 1;
+			}
 			hwndMpeg= MpegWindowCreateOrShow(hwndMpeg, hwndMDIClient, hInstProgram);
 			MpegWindowLoadFile(hwndMpeg, (char *)wParam);
 			break;
@@ -632,7 +640,7 @@ int IndentifyFileType(char *filename)
 	long magic=0;
 	unsigned int navEight_int=0;
 	long navZero_long=0;
-	long mpegSyncByte=0;
+	ULONGLONG mpegSyncByte=0;
 
 	hFile=CreateFile(filename, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL|FILE_FLAG_RANDOM_ACCESS, NULL);
 
@@ -684,4 +692,89 @@ int IndentifyFileType(char *filename)
 	CloseHandle(hFile);
 
 	return ZFT_UNKNOWN;	//if returns 0, then we don't know
+}
+
+void UnsignedLongLongToString(ULONGLONG ull, char *s)
+{
+	int i;
+	unsigned char digit;
+	unsigned char place=0;
+
+	ULONGLONG dividend=(ULONGLONG)1000000000000000000;
+
+	for (i=0;i<18;i++)	{
+		digit=ull/dividend;
+		if ((digit)||(place))	{
+			s[place]=digit+0x30;
+			place++;
+			ull-=dividend*digit;
+		}
+		dividend/=10;
+	}
+//	s[place+1]=0;
+
+
+/*	digit=ull/1000000000;
+	if (digit)	{
+		s[0]=digit+0x30;
+		place++;
+		ull-=1000000000*digit;
+	}
+
+	digit=ull/100000000;
+	if ((digit)||(place))	{
+		s[place]=digit+0x30;
+		place++;
+		ull-=100000000*digit;
+	}
+
+	digit=ull/10000000;
+	if ((digit)||(place))	{
+		s[place]=digit+0x30;
+		place++;
+		ull-=10000000*digit;
+	}
+	digit=ull/1000000;
+	if ((digit)||(place))	{
+		s[place]=digit+0x30;
+		place++;
+		ull-=1000000*digit;
+	}
+	digit=ull/100000;
+	if ((digit)||(place))	{
+		s[place]=digit+0x30;
+		place++;
+		ull-=100000*digit;
+	}
+	digit=ull/10000;
+	if ((digit)||(place))	{
+		s[place]=digit+0x30;
+		place++;
+		ull-=10000*digit;
+	}
+	digit=ull/1000;
+	if ((digit)||(place))	{
+		s[place]=digit+0x30;
+		place++;
+		ull-=1000*digit;
+	}
+	digit=ull/100;
+	if ((digit)||(place))	{
+		s[place]=digit+0x30;
+		place++;
+		ull-=100*digit;
+	}
+	digit=ull/10;
+	if ((digit)||(place))	{
+		s[place]=digit+0x30;
+		place++;
+		ull-=10*digit;
+	}
+	*/
+
+	s[place]=ull+0x30;
+
+	s[place+1]=0;
+
+	return;
 }

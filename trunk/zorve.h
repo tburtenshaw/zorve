@@ -19,6 +19,7 @@ void ModJulianTimeToFileTime(int juliantime, LPFILETIME pft);
 void BytesDisplayNice(long bytes, char *formatString, int thresholdratio, char *outputString);
 void DurationShortFormatDHMS(long duration, char *outputString);
 WORD swap_endian_word(WORD i);
+void UnsignedLongLongToString(ULONGLONG ull, char *s);
 char * ReturnChannelNameFromPID(int pid);
 
 //These functions are used the subprograms to find out the location of each other
@@ -38,6 +39,17 @@ void ZorveSetHwndList(HWND hwnd);
 #define RGB_ZINNY_REDALERT RGB(0xA2, 0x0E, 0x06)
 #define RGB_ZINNY_ORANGEALERT RGB(0xDE,0x88,0x0D)
 #define RGB_ZINNY_GREENALERT RGB(0x00,0x6F,0x10)
+
+#define RGB_ZINNY_COLOUR_SYNC		RGB(47,	188,47)
+#define RGB_ZINNY_COLOUR_ERROR		RGB(245,131,0)
+#define RGB_ZINNY_COLOUR_PAYLOAD	RGB(69,168,	255)
+#define RGB_ZINNY_COLOUR_PRIORITY	RGB(255,0,	141)
+
+#define RGB_ZINNY_COLOUR_SYNC_FADE		RGB((47+0xBE)/2,	(188+0xBE)/2,	(47+0xBE)/2)
+#define RGB_ZINNY_COLOUR_ERROR_FADE		RGB((245+0xBE)/2,(131+0xBE)/2,(0+0xBE)/2)
+#define RGB_ZINNY_COLOUR_PAYLOAD_FADE	RGB((69+0xBE)/2,(168+0xBE)/2,	(255+0xBE)/2)
+#define RGB_ZINNY_COLOUR_PRIORITY_FADE	RGB((255+0xBE)/2,(0+0xBE)/2,	(141+0xBE)/2)
+
 
 //Define the my custom window messages
 //These should all be initially handled by main zorve.c (but may be transfered to a child window)

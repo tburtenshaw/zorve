@@ -118,5 +118,5 @@ int NavScrollUpdate(HWND hwnd, NAVWINDOW_INFO * navWindowInfo);
 long NavWindowOnMouseWheel(HWND hwnd, short nDelta);
 
 int ReadRecordsFromNavFile(NAVWINDOW_INFO *navWindowInfo, unsigned long offset, NAV_RECORD* ptrRecord, long numRecords);
-int NavWindowLoadFile(HWND hwnd, char *openfilename);
+HANDLE NavWindowLoadFile(HWND hwnd, char *openfilename);
 int NavWindowUnloadFile(HWND hwnd);	//closes the file handle, and frees the memory
