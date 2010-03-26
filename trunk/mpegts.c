@@ -111,6 +111,10 @@ LRESULT CALLBACK ChildWndMpegProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 			mpegWindowInfo->hwndBlockDetail = CreateWindow("MpegPacketDetailClass", "blockinfo",
 										WS_CHILD|WS_VISIBLE,
 										200,100,250,200, hwnd, NULL, hInst,NULL);
+
+			//for now, the hexview is the blockdetail
+			mpegWindowInfo->hwndHexView	= mpegWindowInfo->hwndBlockDetail;
+
 			break;
 //		case WM_PAINT:
 //			return 1;
@@ -285,9 +289,9 @@ int MpegReadPacket(MPEGFILE_INFO *mpegFileInfo, TS_PACKET *packet)
 	mpegFileInfo->offset+=188;
 
 	packet->syncbyte = packet->TS_raw_packet[0];
-	packet->transporterror =	packet->TS_raw_packet[1] & 0x80 >> 7;
-	packet->payloadstart =		packet->TS_raw_packet[1] & 0x40 >> 6;
-	packet->transportpriority =	packet->TS_raw_packet[1] & 0x20 >> 5;
+	packet->transporterror =	(packet->TS_raw_packet[1] & 0x80) >> 7;
+	packet->payloadstart =		(packet->TS_raw_packet[1] & 0x40) >> 6;
+	packet->transportpriority =	(packet->TS_raw_packet[1] & 0x20) >> 5;
 	packet->pid	= ((packet->TS_raw_packet[1] & 0b11111) << 8) | packet->TS_raw_packet[2];
 	packet->scrambling	=		(packet->TS_raw_packet[3] & 0b11000000) >> 6;
 	packet->adaptation	= 		(packet->TS_raw_packet[3] & 0b00110000) >> 4;
@@ -295,14 +299,14 @@ int MpegReadPacket(MPEGFILE_INFO *mpegFileInfo, TS_PACKET *packet)
 
 	if (packet->adaptation & 0b10)	{
 		packet->adaptationfield.adaptationfieldlength = packet->TS_raw_packet[4];
-		packet->adaptationfield.discontinuity =		packet->TS_raw_packet[5] & 0b10000000 >> 7;
-		packet->adaptationfield.randomaccess =		packet->TS_raw_packet[5] & 0b01000000 >> 6;
-		packet->adaptationfield.EsPriority =		packet->TS_raw_packet[5] & 0b00100000 >> 5;
-		packet->adaptationfield.PCRFlag =			packet->TS_raw_packet[5] & 0b00010000 >> 4;
-		packet->adaptationfield.OPCRFlag =			packet->TS_raw_packet[5] & 0b00001000 >> 3;
-		packet->adaptationfield.splicingpointflag =	packet->TS_raw_packet[5] & 0b00000100 >> 2;
-		packet->adaptationfield.transportprivatedataflag =		packet->TS_raw_packet[5] & 0b00000010 >> 1;
-		packet->adaptationfield.adaptationfieldextensionflag =	packet->TS_raw_packet[5] & 0b00000001;
+		packet->adaptationfield.discontinuity =		(packet->TS_raw_packet[5] & 0b10000000) >> 7;
+		packet->adaptationfield.randomaccess =		(packet->TS_raw_packet[5] & 0b01000000) >> 6;
+		packet->adaptationfield.EsPriority =		(packet->TS_raw_packet[5] & 0b00100000) >> 5;
+		packet->adaptationfield.PCRFlag =			(packet->TS_raw_packet[5] & 0b00010000) >> 4;
+		packet->adaptationfield.OPCRFlag =			(packet->TS_raw_packet[5] & 0b00001000) >> 3;
+		packet->adaptationfield.splicingpointflag =	(packet->TS_raw_packet[5] & 0b00000100) >> 2;
+		packet->adaptationfield.transportprivatedataflag =		(packet->TS_raw_packet[5] & 0b00000010) >> 1;
+		packet->adaptationfield.adaptationfieldextensionflag =	(packet->TS_raw_packet[5] & 0b00000001);
 
 		b=6;
 		if (packet->adaptationfield.PCRFlag)	{	//nothing is more annoying than a 33bit value
@@ -336,13 +340,13 @@ int MpegReadPacket(MPEGFILE_INFO *mpegFileInfo, TS_PACKET *packet)
 			packet->adaptationfield.adaptationfieldextensionlength = packet->TS_raw_packet[b];
 			b++;
 			offsetAtAFExt=b;
-			packet->adaptationfield.ltwflag	= packet->TS_raw_packet[b] & 0b10000000>>7;
-			packet->adaptationfield.piecewiserateflag	= packet->TS_raw_packet[b] & 0b01000000>>6;
-			packet->adaptationfield.seamlessspliceflag	= packet->TS_raw_packet[b] & 0b00100000>>5;
+			packet->adaptationfield.ltwflag	= (packet->TS_raw_packet[b] & 0b10000000) >> 7;
+			packet->adaptationfield.piecewiserateflag	= (packet->TS_raw_packet[b] & 0b01000000) >> 6;
+			packet->adaptationfield.seamlessspliceflag	= (packet->TS_raw_packet[b] & 0b00100000) >> 5;
 			b++;
 			if (packet->adaptationfield.ltwflag)	{
-				packet->adaptationfield.ltwflag	= packet->TS_raw_packet[b] & 0b10000000>>7;
-				packet->adaptationfield.ltwoffset = (LONG)(packet->TS_raw_packet[b]&0b01111111)<<8;
+				packet->adaptationfield.ltwflag	= (packet->TS_raw_packet[b] & 0b10000000) >> 7;
+				packet->adaptationfield.ltwoffset = (LONG)(packet->TS_raw_packet[b]&0b01111111) << 8;
 				b++;
 				packet->adaptationfield.ltwoffset |=packet->TS_raw_packet[b];
 				b++;
@@ -355,8 +359,8 @@ int MpegReadPacket(MPEGFILE_INFO *mpegFileInfo, TS_PACKET *packet)
 
 			}
 			if (packet->adaptationfield.seamlessspliceflag)	{
-				packet->adaptationfield.splicetype=packet->TS_raw_packet[b] &0b11110000 >> 4;
-				packet->adaptationfield.DTSnextAU=packet->TS_raw_packet[b] & 0b00001110;
+				packet->adaptationfield.splicetype=	(packet->TS_raw_packet[b] & 0b11110000) >> 4;
+				packet->adaptationfield.DTSnextAU=	(packet->TS_raw_packet[b] & 0b00001110);
 				packet->adaptationfield.DTSnextAU <<=29;
 				//packet->adaptationfield.DTSnextAU|=(ULONGLONG)(packet->TS_raw_packet[b+1] & 0b1111111111111110)<<14;
 				//NEED TO FIX
@@ -470,7 +474,10 @@ LRESULT CALLBACK MpegPacketInfoProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lPar
 			mpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);	//get the point to window info
 			mpegWindowInfo->hwndNextButton =	CreateWindow("BUTTON", "Next",
 					   					WS_CHILD|WS_VISIBLE|WS_TABSTOP|WS_BORDER|BS_PUSHBUTTON,
-									    20,60,60,24, hwnd, NULL, hInst, NULL);
+									    100,90,60,24, hwnd, NULL, hInst, NULL);
+			mpegWindowInfo->hwndPrevButton =	CreateWindow("BUTTON", "Prev",
+					   					WS_CHILD|WS_VISIBLE|WS_TABSTOP|WS_BORDER|BS_PUSHBUTTON,
+									    20,90,60,24, hwnd, NULL, hInst, NULL);
 			break;
 
 		case WM_PAINT:
@@ -480,31 +487,10 @@ LRESULT CALLBACK MpegPacketInfoProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lPar
 			return 1;
 			break;
 		case WM_COMMAND:
-			unsigned long tempOffset;
 			mpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);	//get the point to window info
-			if (lParam==(LPARAM)mpegWindowInfo->hwndNextButton)	{
-				if (mpegWindowInfo->fileInfo.loadingInBackground)	{
-					WaitForSingleObject(mpegWindowInfo->fileInfo.hFileAccessMutex,INFINITE);
-
-					tempOffset=mpegWindowInfo->fileInfo.offset;	//remember the offset
-
-					mpegWindowInfo->fileInfo.offset=mpegWindowInfo->fileInfo.displayOffset; //move to the display offset
-					SetFilePointer(mpegWindowInfo->fileInfo.hMpegFile, mpegWindowInfo->fileInfo.displayOffset, 0, FILE_BEGIN);
-					MpegReadPacket(&mpegWindowInfo->fileInfo, &mpegWindowInfo->displayedPacket);//readit
-					mpegWindowInfo->fileInfo.displayOffset=mpegWindowInfo->fileInfo.offset;
-
-					mpegWindowInfo->fileInfo.offset=tempOffset;	//set the offset back to what it was
-					SetFilePointer(mpegWindowInfo->fileInfo.hMpegFile, tempOffset,0, FILE_BEGIN);
-
-					ReleaseMutex(mpegWindowInfo->fileInfo.hFileAccessMutex);
-				}
-				else	{
-					mpegWindowInfo->fileInfo.offset=mpegWindowInfo->fileInfo.displayOffset;
-					MpegReadPacket(&mpegWindowInfo->fileInfo, &mpegWindowInfo->displayedPacket);
-					mpegWindowInfo->fileInfo.displayOffset=mpegWindowInfo->fileInfo.offset;
-				}
-
+			if (MpegChangePacket(mpegWindowInfo, lParam))	{
 				InvalidateRect(hwnd, NULL, FALSE);
+				InvalidateRect(mpegWindowInfo->hwndHexView, NULL, FALSE);
 			}
 			break;
 
@@ -520,9 +506,69 @@ LRESULT CALLBACK MpegPacketDetailProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lP
 //		case WM_ERASEBKGND:
 //			return 1;
 //			break;
+		case WM_PAINT:
+			MpegHexView(hwnd);
+			break;
 	}
 
 	return DefMDIChildProc(hwnd, msg, wParam, lParam);
+}
+
+int MpegHexView(HWND hwnd)
+{
+	MPEGWINDOW_INFO *mpegWindowInfo;
+
+	HDC hdc;
+	PAINTSTRUCT ps;
+	RECT clientRect;
+	RECT outputRect;
+
+	TS_PACKET * packet;
+
+	HFONT hFixedFont;
+
+	int i;
+	int row,col;
+
+	int x,y;
+
+	char hex[3];
+
+	mpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);	//get the point to window info
+	packet=&mpegWindowInfo->displayedPacket;
+
+	GetClientRect(hwnd, &clientRect);
+	hdc=BeginPaint(hwnd, &ps);
+
+	hFixedFont = CreateFont(
+				MulDiv(10, GetDeviceCaps(hdc, LOGPIXELSY), 72),
+				0,0,0,FW_NORMAL,
+				FALSE,FALSE,FALSE,
+				DEFAULT_CHARSET,OUT_OUTLINE_PRECIS,
+                CLIP_DEFAULT_PRECIS,NONANTIALIASED_QUALITY, FIXED_PITCH|FF_DONTCARE,"Courier New");
+	SelectObject(hdc,hFixedFont);
+
+
+	x=0;y=0;
+	for (i=0;i<188;i++)	{
+		sprintf(hex, "%02X", packet->TS_raw_packet[i]);
+		outputRect.left=x;
+		outputRect.top=y;
+		outputRect.right=x+24;
+		outputRect.bottom=y+16;
+		ExtTextOut(hdc, x,y,ETO_OPAQUE, &outputRect, hex, strlen(hex), NULL);
+		x+=24;
+		if ((i % 16) == 15)	{
+			y+=16;
+			x=0;
+		}
+	}
+
+	DeleteObject(hFixedFont);
+	EndPaint(hwnd, &ps);
+
+	return 0;
+
 }
 
 
@@ -598,6 +644,7 @@ int MpegFileInfoPaint(HWND hwnd)
 	outputRect.bottom=clientRect.bottom;
 	ExtTextOut(hdc, 0,0,ETO_OPAQUE, &outputRect, NULL, 0, NULL);
 
+	DeleteObject(hMidFont);
 	EndPaint(hwnd, &ps);
 
 	return 0;
@@ -647,7 +694,11 @@ int MpegFileDetailPaint(HWND hwnd)
 	outputRect.bottom=clientRect.top+y+heightMidFont;
 
 	//Percent scanned
-	sprintf(buffer, "Scanning: %i%%", mpegWindowInfo->fileInfo.countPackets*100/(mpegWindowInfo->fileInfo.filesize/188));
+	if ((mpegWindowInfo->fileInfo.countPackets>0) && (!mpegWindowInfo->fileInfo.loadingInBackground))
+		sprintf(buffer, "Scanned");
+	else
+		sprintf(buffer, "Scanning: %i%%", mpegWindowInfo->fileInfo.countPackets*100/(mpegWindowInfo->fileInfo.filesize/188));
+
 	ExtTextOut(hdc, ZORVEWINDOWMARGIN,y,ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
 	y+=heightMidFont;
 
@@ -667,6 +718,7 @@ int MpegFileDetailPaint(HWND hwnd)
 	outputRect.bottom=clientRect.bottom;
 	ExtTextOut(hdc, 0,0,ETO_OPAQUE, &outputRect, NULL, 0, NULL);
 
+	DeleteFont(hMidFont);
 	EndPaint(hwnd, &ps);
 
 	return 0;
@@ -707,7 +759,7 @@ int MpegPacketInfoPaint(HWND hwnd)
 				0,0,0,FW_NORMAL,
 				FALSE,FALSE,FALSE,
 				DEFAULT_CHARSET,OUT_OUTLINE_PRECIS,
-                CLIP_DEFAULT_PRECIS,NONANTIALIASED_QUALITY, VARIABLE_PITCH|FF_SWISS,"MS Shell Dlg");
+                CLIP_DEFAULT_PRECIS,NONANTIALIASED_QUALITY, VARIABLE_PITCH|FF_SWISS,"Arial");
 
 	hMidFont = CreateFont(
 				MulDiv(10, GetDeviceCaps(hdc, LOGPIXELSY), 72),
@@ -734,8 +786,8 @@ int MpegPacketInfoPaint(HWND hwnd)
 	outputRect.top=clientRect.top;
 	outputRect.bottom=clientRect.top+y+heightMidFont;
 
-	//Block number
-	sprintf(buffer, "Block: %u", (long)(mpegWindowInfo->fileInfo.displayOffset/188));
+	//Packet number
+	sprintf(buffer, "Packet: %u (%u)", (long)(mpegWindowInfo->fileInfo.displayOffset/188), (long)(mpegWindowInfo->fileInfo.displayOffset));
 	ExtTextOut(hdc, ZORVEWINDOWMARGIN, y, ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
 	y+=heightMidFont;
 
@@ -817,7 +869,58 @@ int MpegPacketInfoPaint(HWND hwnd)
 	outputRect.bottom=clientRect.bottom;
 	ExtTextOut(hdc, 0,0,ETO_OPAQUE, &outputRect, NULL, 0, NULL);
 
+	DeleteObject(hSmallFont);
+	DeleteObject(hMidFont);
+	DeleteObject(hLargeFont);
 	EndPaint(hwnd, &ps);
 
 	return 0;
+}
+
+BOOL MpegChangePacket(MPEGWINDOW_INFO *mpegWindowInfo, LPARAM lParam)
+{
+	int	readPacket=0;
+	unsigned long tempOffset;
+
+
+	if (lParam == (LPARAM)mpegWindowInfo->hwndPrevButton)	{
+		if (mpegWindowInfo->fileInfo.displayOffset>=188*2)	{
+			mpegWindowInfo->fileInfo.displayOffset-=188*2;
+			readPacket=1;
+		}
+		else
+			readPacket=0;
+	}
+	if (lParam == (LPARAM)mpegWindowInfo->hwndNextButton)	{
+
+		readPacket=1;
+	}
+
+	if (readPacket)	{
+		if (mpegWindowInfo->fileInfo.loadingInBackground)	{
+			WaitForSingleObject(mpegWindowInfo->fileInfo.hFileAccessMutex,INFINITE);
+
+			tempOffset=mpegWindowInfo->fileInfo.offset;	//remember the offset
+
+			mpegWindowInfo->fileInfo.offset=mpegWindowInfo->fileInfo.displayOffset; //move to the display offset
+			SetFilePointer(mpegWindowInfo->fileInfo.hMpegFile, mpegWindowInfo->fileInfo.displayOffset, 0, FILE_BEGIN);
+			MpegReadPacket(&mpegWindowInfo->fileInfo, &mpegWindowInfo->displayedPacket);//readit
+			mpegWindowInfo->fileInfo.displayOffset=mpegWindowInfo->fileInfo.offset;
+			mpegWindowInfo->fileInfo.offset=tempOffset;	//set the offset back to what it was
+
+			SetFilePointer(mpegWindowInfo->fileInfo.hMpegFile, tempOffset,0, FILE_BEGIN);
+
+			ReleaseMutex(mpegWindowInfo->fileInfo.hFileAccessMutex);
+		}
+		else	{
+			mpegWindowInfo->fileInfo.offset=mpegWindowInfo->fileInfo.displayOffset;
+			SetFilePointer(mpegWindowInfo->fileInfo.hMpegFile, mpegWindowInfo->fileInfo.displayOffset, 0, FILE_BEGIN);
+			MpegReadPacket(&mpegWindowInfo->fileInfo, &mpegWindowInfo->displayedPacket);
+			mpegWindowInfo->fileInfo.displayOffset=mpegWindowInfo->fileInfo.offset;
+		}
+
+			return TRUE;	//redraw
+	}
+
+	return FALSE;
 }

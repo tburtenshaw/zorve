@@ -101,7 +101,9 @@ int MpegWindowPaint(HWND hwnd);
 int MpegFileInfoPaint(HWND hwnd);
 int MpegFileDetailPaint(HWND hwnd);
 int MpegPacketInfoPaint(HWND hwnd);
+int MpegHexView(HWND hwnd);
 
+BOOL MpegChangePacket(MPEGWINDOW_INFO * mpegWindowInfo, LPARAM buttonPressed); //returns ?redraw
 
 HANDLE MpegWindowLoadFile(HWND hwnd, char * mpegFile);
 int MpegTSFindSyncByte(HANDLE hFile, ULONGLONG * syncbyteOffset);

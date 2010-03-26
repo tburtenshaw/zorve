@@ -189,6 +189,7 @@ LRESULT CALLBACK ChildWndInfoProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 	HINSTANCE hInst;
 
 	INFOFILE_INFO *infoFile;
+	HFONT hSmallFont;
 
 	switch(msg) {
 		case WM_CREATE:
@@ -213,6 +214,19 @@ LRESULT CALLBACK ChildWndInfoProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 			infoFile->windowInfo.buttonHwndRevert =	CreateWindow("BUTTON", "Revert",
 				    					WS_CHILD|WS_VISIBLE|WS_TABSTOP|WS_BORDER|BS_PUSHBUTTON,
 									    160,250,0,0, hwnd, NULL, hInst, NULL);
+			hSmallFont = CreateFont(
+				MulDiv(10, GetDeviceCaps(GetDC(hwnd), LOGPIXELSY), 72),
+				0,0,0,FW_NORMAL,
+				FALSE,FALSE,FALSE,
+				DEFAULT_CHARSET,OUT_OUTLINE_PRECIS,
+                CLIP_DEFAULT_PRECIS,NONANTIALIASED_QUALITY, VARIABLE_PITCH|FF_SWISS,"MS Shell Dlg");
+				//needs to be deleted somewhere
+
+
+			SendMessage(infoFile->windowInfo.editHwndRecording, WM_SETFONT, (WPARAM)hSmallFont, 0);
+			SendMessage(infoFile->windowInfo.editHwndDescription, WM_SETFONT, (WPARAM)hSmallFont, 0);
+			SendMessage(infoFile->windowInfo.buttonHwndSaveAll, WM_SETFONT, (WPARAM)hSmallFont, 0);
+			SendMessage(infoFile->windowInfo.buttonHwndRevert, WM_SETFONT, (WPARAM)hSmallFont, 0);
 
 			break;
 		case WM_COMMAND:
@@ -315,7 +329,7 @@ void PaintInfoWindow(HWND hwnd)
 	textRect.top=y; textRect.bottom=y+height+4;
 
 	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, "Recording:", 10, NULL);
-	SendMessage(infoFile->windowInfo.editHwndRecording, WM_SETFONT, (WPARAM)hSmallFont, 0);
+//	SendMessage(infoFile->windowInfo.editHwndRecording, WM_SETFONT, (WPARAM)hSmallFont, 0);
 	MoveWindow(infoFile->windowInfo.editHwndRecording, xEditColumn+margin, y, (clientRect.right-clientRect.left)-xEditColumn-margin-margin, height+4, TRUE);
 	textRect.left=clientRect.right-margin; textRect.right=clientRect.right;
 	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, NULL, 0, NULL);	//rightmarginfill
@@ -328,7 +342,7 @@ void PaintInfoWindow(HWND hwnd)
 	textRect.top=y; textRect.bottom=y+height*4+4;
 
 	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, "Description:", 12, NULL);
-	SendMessage(infoFile->windowInfo.editHwndDescription, WM_SETFONT, (WPARAM)hSmallFont, 0);
+//	SendMessage(infoFile->windowInfo.editHwndDescription, WM_SETFONT, (WPARAM)hSmallFont, 0);
 	MoveWindow(infoFile->windowInfo.editHwndDescription, xEditColumn+margin, y, (clientRect.right-clientRect.left)-xEditColumn-margin-margin,height*4+4, TRUE);
 	textRect.left=clientRect.right-margin; textRect.right=clientRect.right;
 	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, NULL, 0, NULL);	//rightmarginfill
@@ -404,12 +418,12 @@ void PaintInfoWindow(HWND hwnd)
 	buttonwidth=100;
 	xbuttonpos=clientRect.right-margin-buttonwidth;
 
-	SendMessage(infoFile->windowInfo.buttonHwndRevert, WM_SETFONT, (WPARAM)hSmallFont, 0);
+	//SendMessage(infoFile->windowInfo.buttonHwndRevert, WM_SETFONT, (WPARAM)hSmallFont, 0);
 	MoveWindow(infoFile->windowInfo.buttonHwndRevert, xbuttonpos, clientRect.bottom-margin-buttonheight, buttonwidth, buttonheight, TRUE);
 	InvalidateRect(infoFile->windowInfo.buttonHwndRevert, NULL, TRUE);
 
 	xbuttonpos=clientRect.right-margin-buttonwidth-margin-buttonwidth;
-	SendMessage(infoFile->windowInfo.buttonHwndSaveAll, WM_SETFONT, (WPARAM)hSmallFont, 0);
+	//SendMessage(infoFile->windowInfo.buttonHwndSaveAll, WM_SETFONT, (WPARAM)hSmallFont, 0);
 	MoveWindow(infoFile->windowInfo.buttonHwndSaveAll, xbuttonpos, clientRect.bottom-margin-buttonheight, buttonwidth, buttonheight, TRUE);
 	InvalidateRect(infoFile->windowInfo.buttonHwndSaveAll, NULL, TRUE);
 
@@ -419,7 +433,7 @@ void PaintInfoWindow(HWND hwnd)
 	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, NULL, 0, NULL);	//lowermarginfill
 
 
-
+	DeleteObject(hSmallFont);
 
 	EndPaint(hwnd, &psPaint);
 
