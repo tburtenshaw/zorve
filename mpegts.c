@@ -333,7 +333,8 @@ int MpegReadPacket(MPEGFILE_INFO *mpegFileInfo, TS_PACKET *packet)
 		}
 		if (packet->adaptationfield.transportprivatedataflag)	{
 			packet->adaptationfield.transportprivatedatalength = packet->TS_raw_packet[b];
-			memcpy(&packet->adaptationfield.privatedata, &packet->TS_raw_packet[b+1], packet->adaptationfield.transportprivatedatalength);
+			//this was causing crash, transportprivatedatalength was longer than it should be! (needs fix)
+			//memcpy(&packet->adaptationfield.privatedata, &packet->TS_raw_packet[b+1], packet->adaptationfield.transportprivatedatalength);
 			b+=packet->adaptationfield.transportprivatedatalength+1;
 		}
 		if (packet->adaptationfield.adaptationfieldextensionflag)	{
