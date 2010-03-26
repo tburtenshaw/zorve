@@ -364,7 +364,7 @@ int	NavRecordListHeaderPaint(HWND hwnd)
 
 	ExtTextOut(hdc, x,y,ETO_OPAQUE, &outputRect, NULL, 0, NULL);
 
-
+	DeleteObject(hSmallFont);
 	EndPaint(hwnd, &ps);
 
 	return 0;
@@ -538,7 +538,7 @@ int NavRecordListViewPaint(HWND hwnd)
 		ExtTextOut(hdc, 0,y,ETO_OPAQUE, &outputRect, NULL, 0, NULL);
 	}
 
-
+	DeleteObject(hSmallFont);
 	EndPaint(hwnd, &ps);
 
 	return 0;
@@ -656,6 +656,7 @@ int NavRecordHeaderPaint(HWND hwnd)
 	ExtTextOut(hdc,	(clientRect.left+clientRect.right)/2,y,ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
 	y+=heightFont;
 
+	DeleteObject(hSmallFont);
 	EndPaint(hwnd, &ps);
 
 

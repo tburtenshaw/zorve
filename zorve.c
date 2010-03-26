@@ -621,7 +621,7 @@ char * ReturnChannelNameFromPID(int pid)
 		case 0x022A:
 		 	return "Prime";
 		case 0x022C:
-		 	return "Freeview HD";
+		 	return "Freeview HD Demo";
 	}
 
 
@@ -711,66 +711,6 @@ void UnsignedLongLongToString(ULONGLONG ull, char *s)
 		}
 		dividend/=10;
 	}
-//	s[place+1]=0;
-
-
-/*	digit=ull/1000000000;
-	if (digit)	{
-		s[0]=digit+0x30;
-		place++;
-		ull-=1000000000*digit;
-	}
-
-	digit=ull/100000000;
-	if ((digit)||(place))	{
-		s[place]=digit+0x30;
-		place++;
-		ull-=100000000*digit;
-	}
-
-	digit=ull/10000000;
-	if ((digit)||(place))	{
-		s[place]=digit+0x30;
-		place++;
-		ull-=10000000*digit;
-	}
-	digit=ull/1000000;
-	if ((digit)||(place))	{
-		s[place]=digit+0x30;
-		place++;
-		ull-=1000000*digit;
-	}
-	digit=ull/100000;
-	if ((digit)||(place))	{
-		s[place]=digit+0x30;
-		place++;
-		ull-=100000*digit;
-	}
-	digit=ull/10000;
-	if ((digit)||(place))	{
-		s[place]=digit+0x30;
-		place++;
-		ull-=10000*digit;
-	}
-	digit=ull/1000;
-	if ((digit)||(place))	{
-		s[place]=digit+0x30;
-		place++;
-		ull-=1000*digit;
-	}
-	digit=ull/100;
-	if ((digit)||(place))	{
-		s[place]=digit+0x30;
-		place++;
-		ull-=100*digit;
-	}
-	digit=ull/10;
-	if ((digit)||(place))	{
-		s[place]=digit+0x30;
-		place++;
-		ull-=10*digit;
-	}
-	*/
 
 	s[place]=ull+0x30;
 
