@@ -697,12 +697,22 @@ int IndentifyFileType(char *filename)
 void UnsignedLongLongToString(ULONGLONG ull, char *s)
 {
 	int i;
+
+	ULONGLONG dividend;
+	int numberofzeros;	//in the dividend
 	unsigned char digit;
 	unsigned char place=0;
 
-	ULONGLONG dividend=(ULONGLONG)1000000000000000000;
+	if (ull>99999999999)	{
+		dividend=(ULONGLONG)1000000000000000000;
+		numberofzeros=18;
+	}
+	else	{	//most values will be shorter than 11 digits, so we can take a shortcut
+		dividend=(ULONGLONG)10000000000;
+		numberofzeros=10;
+	}
 
-	for (i=0;i<18;i++)	{
+	for (i=0;i<numberofzeros;i++)	{
 		digit=ull/dividend;
 		if ((digit)||(place))	{
 			s[place]=digit+0x30;
