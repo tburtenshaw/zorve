@@ -252,7 +252,7 @@ LRESULT CALLBACK NavRecordListViewHeaderProc(HWND hwnd,UINT msg, WPARAM wparam,L
 				InvalidateRect(navWindowInfo->hwndRecordListHeader, NULL, FALSE);
 			}
 
-			if ((c>=100) && (c<121))	{
+			if ((c>=100) && (c<122))	{
 				navWindowInfo=(NAVWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);
 				c-=100;
 
@@ -279,7 +279,7 @@ int NavRecordListHeaderCheckAdjustBar(NAVWINDOW_INFO * navWindowInfo, int x, int
 
 	int columnx=0;
 
-	for (c=0;c<21;c++)	{
+	for (c=0;c<22;c++)	{
 		columnx+=navWindowInfo->widthColumn[c];
 		if ((x>columnx-4) && (x<columnx+4))
 			return c;
@@ -338,7 +338,7 @@ int	NavRecordListHeaderPaint(HWND hwnd)
 	outputRect.left=clientRect.left;
 	outputRect.right=clientRect.left + navWindowInfo->widthColumn[0];
 
-	for (c=0; c<21; c++)	{
+	for (c=0; c<22; c++)	{
 
 		if (navWindowInfo->widthColumn[c]>0)	{
 			//margin of two for control
@@ -423,7 +423,7 @@ int NavRecordListViewPaint(HWND hwnd)
 		outputRect.bottom=y+heightFont;
 		columnStart=0;
 
-		for (c=0;c<21;c++)	{
+		for (c=0;c<22;c++)	{
 			outputRect.left=columnStart;
 			outputRect.right=columnStart+navWindowInfo->widthColumn[c];
 
@@ -569,6 +569,7 @@ void NavInitiateColumnWidths(NAVWINDOW_INFO * navWindowInfo)
 	navWindowInfo->widthColumn[19]=0;
 	navWindowInfo->widthColumn[20]=0;
 	navWindowInfo->widthColumn[21]=0;
+	navWindowInfo->widthColumn[22]=0;
 
 	sprintf(navWindowInfo->columnTitle[0], "Number");
 	sprintf(navWindowInfo->columnTitle[1], "Short0");
@@ -916,7 +917,7 @@ int NavWindowListHeaderHandleContextMenu(HWND hwnd, WPARAM wparam, LPARAM lparam
 	menuItemInfo.fMask = MIIM_STRING|MIIM_STATE|MIIM_ID;
 	menuItemInfo.fType = MFT_STRING;
 
-	for (c=0; c<21; c++)	{
+	for (c=0; c<22; c++)	{
 
 		menuItemInfo.dwTypeData=navWindowInfo->columnTitle[c];
 		menuItemInfo.cch = strlen(navWindowInfo->columnTitle[c]);

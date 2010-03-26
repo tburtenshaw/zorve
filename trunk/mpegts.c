@@ -191,6 +191,7 @@ DWORD WINAPI MpegReadFileStats(MPEGFILE_INFO *mpegFileInfo)
 			return 0;
 		WaitForSingleObject(mpegFileInfo->hFileAccessMutex,INFINITE);
 		MpegReadPacket(mpegFileInfo, &packet);
+
 		mpegFileInfo->countPackets++;
 		offset+=188;
 
