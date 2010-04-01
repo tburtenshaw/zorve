@@ -1,0 +1,17 @@
+#summary How to use the features of ZORVE
+#labels manual
+
+= Introduction =
+
+ZORVE is a single program designed to allow you to edit the information that your Zinwell or Olevia set-top box records to your hard-drive.
+
+If you are not familiar with using Olevia firmware to record then take a look at my other page about [http://code.google.com/p/zimview/wiki/UsingAndRecordingWithOleviaFirmware Using and Recording with Olevia Firmware].
+
+You will need operating system access to the hard-drive that you have recorded to. You may be using a _FAT32_ drive or using an _ext3_ driver with Windows.
+
+= Viewing a list of recorded programs =
+When the program starts it will default to its current directory.
+
+Go to _File-Open_ and browse to the _Record_Video_ directory. Choose one of the files (they will be of a form similar to 2010Z0227_1900_0.
+
+ZORVE will read all through all the relevant files in this directory and display their information.
