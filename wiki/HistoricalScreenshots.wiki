@@ -3,7 +3,7 @@
 
 = Screenshots =
 
-Here are some screenshots in chronological order of Zorve.
+Here are some screenshots of Zorve (in chronological order).
 
 ==February 20, 2010==
 http://zorve.googlecode.com/svn/wiki/dev_screenshot_2010-02-20.png
