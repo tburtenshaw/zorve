@@ -154,7 +154,16 @@ LRESULT CALLBACK ChildWndListProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 		case WM_MOUSEWHEEL:
 			return ListWindowOnMouseWheel(hwnd, (short)HIWORD(wparam));
 			break;
-
+		case ZM_REQUEST_RECORDINGNAME:
+			DIRECTORY_LIST* dl;
+			lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
+			dl = ListWindowGetEntryFromFilename(lpListWindowInfo, (char*)wparam);
+			if (dl)	{
+				SendMessage((HWND)lparam, ZM_REPLY_RECORDINGNAME, (WPARAM)dl->recordingname,0);
+				return 1;
+			}
+			return 0;
+			break;
 
 	}
 	return DefMDIChildProc(hwnd, msg, wparam, lparam);
@@ -802,7 +811,6 @@ DIRECTORY_LIST* ListWindowGetEntryFromFilename(LISTWINDOW_INFO* windowInfo, char
 			return llist;
 		llist=llist->next;
 	}
-
 
 	return NULL;
 }

@@ -1,3 +1,5 @@
+#define MAXLEN_RECORDINGTITLE 120;
+
 #include <windows.h>
 #include <windowsx.h>
 
@@ -21,6 +23,7 @@ void DurationShortFormatDHMS(long duration, char *outputString);
 WORD swap_endian_word(WORD i);
 void UnsignedLongLongToString(ULONGLONG ull, char *s);
 char * ReturnChannelNameFromPID(int pid);
+int FilenameMpegOrNavToInfo(char *buffer, char *filename);	//returns number of chars before .
 
 //These functions are used the subprograms to find out the location of each other
 HWND ZorveGetHwndInfo(void);
@@ -56,11 +59,14 @@ void ZorveSetHwndList(HWND hwnd);
 //i.e. SendMessage to the main HWND to get this done. (Potentially can send to HWND in same source file.)
 #define ZM_OPENNAV_DLG		(WM_USER+0)	//will bring up dialog to choose a NAV by default
 #define ZM_OPENMPEG_DLG 	(WM_USER+1) //will bring up dialog to choose an MPEG (i.e. list of mpgs by default)
-#define ZM_OPENFILENAV		(WM_USER+2)	//Open up particular nav file
+#define ZM_OPENFILENAV		(WM_USER+2)	//Open up particular nav file, wParam is the file
 #define ZM_OPENFILEMPEG		(WM_USER+3)	//Open up a specified mpeg file
 #define ZM_OPENFILEINFO		(WM_USER+4)
 #define ZM_LIST_SELECTFROMFILEANDREFRESH	(WM_USER+10)	//Select the file as specified
 #define ZM_LIST_SELECTFROMFILE	(WM_USER+11)
 #define ZM_MPEG_SKIPTOOFFSET (WM_USER+20)	//Skip to a specified point
+#define ZM_REQUEST_RECORDINGNAME (WM_USER+30)	//Send this using lParam as receive window, wParam as filename
+#define ZM_REPLY_RECORDINGNAME (WM_USER+31)	//Send this back to window with wParam as text
 
-
+#define ZM_INFO_CHANGEMPEGSTATUS (WM_USER+40)	//Lparam either -1, 0, 1
+#define ZM_INFO_CHANGENAVSTATUS (WM_USER+41)

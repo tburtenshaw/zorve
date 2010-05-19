@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <wchar.h>
 #include "zorve.h"
 #include "zorveres.h"
 #include "info.h"
@@ -63,8 +64,10 @@ HWND InfoWindowCreate(HWND hwndMDIClient, HINSTANCE hInst)
 	return hwndChild;
 }
 
-int  InfoWindowLoadFile(HWND hwnd, char *filename)
+int  InfoWindowLoadFile(HWND hwnd, char *filename, int checkForReloads)
 {
+	//returns 1 if already open and nothing is done
+	//0 if opens file again
 
 	HANDLE infoFile;
 	INFOFILE_INFO *infoFileStruct;
@@ -72,7 +75,19 @@ int  InfoWindowLoadFile(HWND hwnd, char *filename)
 	long n;
 
 	infoFileStruct = (INFOFILE_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
+
+	if ((checkForReloads) && (strcmp(infoFileStruct->filename, filename)==0))
+		return 1;
+
+	//MessageBox(hwnd, infoFileStruct->filename, filename, 0);
+
+	//copy the filename first
 	strcpy(infoFileStruct->filename, filename);
+	//the zero some things (unfortunately, the hwnds are stored in this property, so can't efficiently memset to zero.
+	infoFileStruct->loadedMpeg=0;
+	infoFileStruct->loadedNav=0;
+	infoFileStruct->loadedJpeg=0;
+
 
 	infoFile = CreateFile(filename, GENERIC_READ, FILE_SHARE_READ, NULL,
 				OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS, NULL);
@@ -197,6 +212,7 @@ LRESULT CALLBACK ChildWndInfoProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 
 			infoFile=malloc(sizeof(INFOFILE_INFO));
 			SetWindowLong(hwnd, GWL_USERDATA, (long)infoFile);	//need to set this to pointer to new structure
+			memset(infoFile, 0, sizeof(INFOFILE_INFO));
 
 			infoFile->windowInfo.editHwndRecording =	CreateWindow("EDIT", "Recording name",
 				    					WS_CHILD|WS_VISIBLE|ES_LEFT|WS_TABSTOP|WS_BORDER|ES_AUTOHSCROLL,
@@ -235,8 +251,9 @@ LRESULT CALLBACK ChildWndInfoProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 				SaveInfoChanges(hwnd, infoFile);
 				SendMessage(GetParent(GetParent(hwnd)), ZM_LIST_SELECTFROMFILEANDREFRESH, (WPARAM)infoFile->filename, (LPARAM)0);
 			}
-			if (lparam==(LPARAM)infoFile->windowInfo.buttonHwndRevert)
-				InfoWindowLoadFile(hwnd, infoFile->filename);
+			if (lparam==(LPARAM)infoFile->windowInfo.buttonHwndRevert)	{
+				InfoWindowLoadFile(hwnd, infoFile->filename, FALSE);
+			}
 
 			break;
 		case WM_SIZE:
@@ -247,6 +264,25 @@ LRESULT CALLBACK ChildWndInfoProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 			break;
 		case WM_ERASEBKGND:
 			return 1;
+			break;
+		case ZM_REQUEST_RECORDINGNAME:
+			infoFile = (INFOFILE_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
+			if (!strcmp((char*) wparam, infoFile->filename))
+				SendMessage((HWND)lparam, ZM_REPLY_RECORDINGNAME, (WPARAM)infoFile->recordingname,0);
+			return 1;
+			break;
+		case ZM_INFO_CHANGEMPEGSTATUS:
+			infoFile = (INFOFILE_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
+			infoFile->loadedMpeg=lparam;
+			//MessageBox(hwnd, "Unable to load MPEG-TS file.", "Zorve", MB_ICONEXCLAMATION|MB_RETRYCANCEL); (we want to avoid modals)
+			InvalidateRect(hwnd, NULL, FALSE);
+			break;
+		case ZM_INFO_CHANGENAVSTATUS:
+			infoFile = (INFOFILE_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
+			infoFile->loadedNav=lparam;
+
+//			MessageBox(hwnd, "Unable to load NAV file.", "Zorve", MB_ICONEXCLAMATION|MB_RETRYCANCEL);
+			InvalidateRect(hwnd, NULL, FALSE);
 			break;
 		case WM_DESTROY:
 			infoFile = (INFOFILE_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
@@ -274,7 +310,10 @@ void PaintInfoWindow(HWND hwnd)
 	SIZE sizeTextExtent;
 	char outputText[255];
 
+	TIME_ZONE_INFORMATION tzi;
+	char timezonename[32];
 	FILETIME filetime;
+	FILETIME localfiletime;
 	SYSTEMTIME systemtime;
 
 	int xEditColumn;
@@ -361,9 +400,13 @@ void PaintInfoWindow(HWND hwnd)
 
 	textRect.left=0; textRect.right=clientRect.right;
 	textRect.top=y; textRect.bottom=y+height+margin;
-	UnixTimeToFileTime(infoFile->unixtime, &filetime);
-	FileTimeToSystemTime(&filetime, &systemtime);
-	sprintf(outputText, "UTC Date/Time: %i/%i/%i, %02i:%02i:%02i", systemtime.wDay, systemtime.wMonth, systemtime.wYear, systemtime.wHour, systemtime.wMinute, systemtime.wSecond);
+	UnixTimeToFileTime(infoFile->unixtime, &filetime);		//convert the file's unix timestamp to a FILETIME
+	FileTimeToLocalFileTime(&filetime, &localfiletime);		//Then correct for timezone
+	FileTimeToSystemTime(&localfiletime, &systemtime);		//Then convert it to be easily printable
+	GetTimeZoneInformation(&tzi);
+
+	WideCharToMultiByte(CP_ACP, 0, &tzi.StandardName, -1, &timezonename[0], 32, NULL, NULL);
+	sprintf(outputText, "Unix Date/Time: %i/%i/%i, %02i:%02i:%02i (%s)", systemtime.wDay, systemtime.wMonth, systemtime.wYear, systemtime.wHour, systemtime.wMinute, systemtime.wSecond, timezonename);
 	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, outputText, strlen(outputText), NULL);
 	y+=height+margin;
 
@@ -382,6 +425,12 @@ void PaintInfoWindow(HWND hwnd)
 	textRect.left=margin+16; textRect.right=clientRect.right;
 	textRect.top=y; textRect.bottom=y+MAX(height,16)+margin;
 	sprintf(outputText, " %s ", infoFile->assocMpeg);
+	if (infoFile->loadedMpeg<0)
+		SetTextColor(hdc, RGB_ZINNY_REDALERT);
+	else if (infoFile->loadedMpeg==0)
+		SetTextColor(hdc, RGB_ZINNY_BLACK);
+	else
+		SetTextColor(hdc, RGB_ZINNY_GREENALERT);
 	ExtTextOut(hdc, margin+16+margin, y, ETO_OPAQUE, &textRect, outputText, strlen(outputText), NULL);
 
 	textRect.left=0; textRect.right=margin;
@@ -399,6 +448,12 @@ void PaintInfoWindow(HWND hwnd)
 	textRect.left=margin+16; textRect.right=clientRect.right;
 	textRect.top=y; textRect.bottom=y+MAX(height,16)+margin;
 	sprintf(outputText, " %s ", infoFile->assocNav);
+	if (infoFile->loadedNav<0)
+		SetTextColor(hdc, RGB_ZINNY_REDALERT);
+	else if (infoFile->loadedNav==0)
+		SetTextColor(hdc, RGB_ZINNY_BLACK);
+	else
+		SetTextColor(hdc, RGB_ZINNY_GREENALERT);
 	ExtTextOut(hdc, margin+16+margin, y, ETO_OPAQUE, &textRect, outputText, strlen(outputText), NULL);
 	textRect.left=0; textRect.right=margin;
 	textRect.top=y; textRect.bottom=y+MAX(height,16)+margin;

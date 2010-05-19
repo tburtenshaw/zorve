@@ -99,6 +99,8 @@ LRESULT CALLBACK ChildWndMpegProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 			SetWindowLong(hwnd, GWL_USERDATA, (long)mpegWindowInfo); //set the custom long of the window to remember it
 			memset(mpegWindowInfo, 0, sizeof(MPEGWINDOW_INFO));	//make sure everything set to zero
 
+			mpegWindowInfo->zorveHwnd = GetParent(GetParent(hwnd));
+
 			mpegWindowInfo->hwndFileInfo = CreateWindow("MpegFileInfoClass", "fileinfo",
 										WS_CHILD|WS_VISIBLE,
 										0,0,300,100, hwnd, NULL, hInst,NULL);
@@ -116,9 +118,10 @@ LRESULT CALLBACK ChildWndMpegProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 			mpegWindowInfo->hwndHexView	= mpegWindowInfo->hwndBlockDetail;
 
 			break;
-//		case WM_PAINT:
-//			return 1;
-//			break;
+		case ZM_REPLY_RECORDINGNAME:
+			mpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);	//get the point to window info
+			sprintf(mpegWindowInfo->recordingname, "%s", (char *)wparam);
+			break;
 		case WM_ERASEBKGND:
 			return 1;
 			break;
@@ -151,11 +154,16 @@ HANDLE MpegWindowLoadFile(HWND hwnd, char * mpegFile)
 	//Check if there is already a file open and unload it
 	if (mpegWindowInfo->fileInfo.hMpegFile)	{
 		CloseHandle(mpegWindowInfo->fileInfo.hMpegFile);
-		memset(mpegWindowInfo,0,sizeof(MPEGWINDOW_INFO));
+		//reset everything that should be reset (we can't memset windowinfo to zero, as we need to retain hwnds
+		memset(&mpegWindowInfo->fileInfo, 0, sizeof(MPEGFILE_INFO));
+		memset(&mpegWindowInfo->displayedPacket, 0, sizeof(TS_PACKET));
 	}
 
 
 	lstrcpy(mpegWindowInfo->fileInfo.filename, mpegFile);
+
+	SendMessage(mpegWindowInfo->zorveHwnd, ZM_REQUEST_RECORDINGNAME, (WPARAM)mpegWindowInfo->fileInfo.filename, (LPARAM)hwnd);
+
 	//Load as 'sequential' for caching.
 	mpegWindowInfo->fileInfo.hMpegFile = CreateFile(mpegFile, GENERIC_READ, FILE_SHARE_READ, NULL,
 				OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, NULL);
@@ -621,6 +629,15 @@ int MpegFileInfoPaint(HWND hwnd)
 	ExtTextOut(hdc, ZORVEWINDOWMARGIN,y,ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
 	y+=heightMidFont;
 
+	//Recording name if exists
+	if (mpegWindowInfo->recordingname[0])	{
+		outputRect.top=y;
+		outputRect.bottom=y+heightMidFont;
+		sprintf(buffer, "%s",  mpegWindowInfo->recordingname);
+		ExtTextOut(hdc, ZORVEWINDOWMARGIN,y,ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
+		y+=heightMidFont;
+	}
+
 	//Size
 	outputRect.top=y;
 	outputRect.bottom=y+heightMidFont;
@@ -696,7 +713,7 @@ int MpegFileDetailPaint(HWND hwnd)
 	outputRect.bottom=clientRect.top+y+heightMidFont;
 
 	//Percent scanned
-	if ((mpegWindowInfo->fileInfo.countPackets>0) && (!mpegWindowInfo->fileInfo.loadingInBackground))
+	if (((mpegWindowInfo->fileInfo.countPackets>0) && (!mpegWindowInfo->fileInfo.loadingInBackground)) || (mpegWindowInfo->fileInfo.filesize<189))
 		sprintf(buffer, "Scanned");
 	else
 		sprintf(buffer, "Scanning: %i%%", mpegWindowInfo->fileInfo.countPackets*100/(mpegWindowInfo->fileInfo.filesize/188));
