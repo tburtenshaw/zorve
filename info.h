@@ -29,12 +29,20 @@ struct sInfoFileInformation
 	char description[512];		//Very comfortable number of bytes
 
 	int modjulianday;		//Modified Julian date of recording
-	char decimalbyteHour;
+	char decimalbyteHour;	//Binary-coded decimal hour and minute
 	char decimalbyteMinute;
 
-	char assocMpeg[256];
-	char assocNav[256];
-	char assocJpeg[256];
+	char assocMpeg[256];	//relative to the zinwell's filesystem
+	char assocNav[256];		//
+	char assocJpeg[256];	//
+
+	char localMpeg[256];	//the path and filename of the files
+	char localNav[256];		//relative to what it is in Windows
+	char localJpeg[256];	//
+
+	int loadedMpeg;			//1 if success, 0 if haven't tried
+	int loadedNav;			//-1 if failed
+	int loadedJpeg;
 
 	//PIDs
 	unsigned short PID[8];			//Arbitary - I don't think any of ours have eight PIDs
@@ -48,7 +56,7 @@ struct sInfoFileInformation
 	char dup_decimalbyteHour;
 	char dup_decimalbyteMinute;
 
-	//I don't like doing this, but this contains hwnds etc.
+	//I don't like doing this, but this contains hwnds etc. (re-reading this, i don't know why i did it this way!)
 	//I'd prefer to have the file stuff as subset - but too lazy to fix
 	INFOFILEWINDOW_INFO windowInfo;
 };
@@ -56,7 +64,7 @@ struct sInfoFileInformation
 int InfoWindowRegisterWndClass(HINSTANCE hInst);
 HWND InfoWindowCreateOrShow(HWND hwnd, HWND hwndChild, HINSTANCE hInst);
 HWND InfoWindowCreate(HWND hwndMDIClient, HINSTANCE hInst);
-int  InfoWindowLoadFile(HWND hwnd, char *filename);
+int  InfoWindowLoadFile(HWND hwnd, char *filename, int stopReloads);
 
 int SaveInfoChanges(HWND hwnd, INFOFILE_INFO *info);
 

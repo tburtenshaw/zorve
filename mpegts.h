@@ -74,6 +74,7 @@ struct sMpegFileInfo	{
 };
 
 struct sMpegWindowInfo	{
+	HWND	zorveHwnd;
 	MPEGFILE_INFO fileInfo;
 	TS_PACKET	displayedPacket;
 
@@ -85,6 +86,8 @@ struct sMpegWindowInfo	{
 	HWND	hwndHexView;
 	HWND	hwndNextButton;
 	HWND	hwndPrevButton;
+
+	char recordingname[120];
 };
 
 int MpegWindowRegisterWndClass(HINSTANCE hInst);

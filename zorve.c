@@ -205,7 +205,7 @@ void MainWndProc_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
 			if (result==ZFT_INFO)	{
 				//This loads the infofile after popping up (or making) the infowindow
 				hwndInfo = InfoWindowCreateOrShow(hwndInfo, hwndMDIClient, hInstProgram);
-				InfoWindowLoadFile(hwndInfo, &openfilename[0]);
+				InfoWindowLoadFile(hwndInfo, &openfilename[0], TRUE);
 
 				//Change folder
 				if (!(IsWindow(hwndList)))	{
@@ -319,11 +319,12 @@ LRESULT CALLBACK MainWndProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam)
 		//We should probably redeligate to the appropriate file
 		case ZM_OPENFILEINFO:
 			hwndInfo = InfoWindowCreateOrShow(hwndInfo, hwndMDIClient, hInstProgram);
-			InfoWindowLoadFile(hwndInfo, (char *)wParam);
+			InfoWindowLoadFile(hwndInfo, (char *)wParam, TRUE);
 			break;
 		case ZM_OPENFILENAV:
 			if (GetFileAttributes((char *)wParam) == INVALID_FILE_ATTRIBUTES)	{
-				MessageBox(hwnd, "Unable to load .nav file.", "Zorve", 0);
+				//MessageBox(hwnd, "Unable to load .nav file.", "Zorve", 0);
+				SendMessage(hwndInfo, ZM_INFO_CHANGENAVSTATUS, 0, -1);
 				return 1;
 			}
 			hwndNav= NavWindowCreateOrShow(hwndNav, hwndMDIClient, hInstProgram);
@@ -331,7 +332,8 @@ LRESULT CALLBACK MainWndProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam)
 			break;
 		case ZM_OPENFILEMPEG:
 			if (GetFileAttributes((char *)wParam) == INVALID_FILE_ATTRIBUTES)	{
-				MessageBox(hwnd, "Unable to load MPEG-TS file.", "Zorve", MB_ICONEXCLAMATION|MB_RETRYCANCEL);
+				//If we can't load the file, tell the info box - it'll inform the user
+				SendMessage(hwndInfo, ZM_INFO_CHANGEMPEGSTATUS, 0, -1);
 				return 1;
 			}
 			hwndMpeg= MpegWindowCreateOrShow(hwndMpeg, hwndMDIClient, hInstProgram);
@@ -349,6 +351,22 @@ LRESULT CALLBACK MainWndProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam)
 			entryFromListWindow = ListWindowGetEntryFromFilename(infoFromListWindow, (char*)wParam);
 			RefreshAndOrSelectEntry(infoFromListWindow, entryFromListWindow, TRUE, TRUE);
 			InvalidateRect(hwndList, NULL, FALSE);
+			break;
+		case ZM_REQUEST_RECORDINGNAME:
+			char buffer[160];
+			int msgResult;
+
+			FilenameMpegOrNavToInfo(buffer, (char *)wParam); //get the info filename
+
+			msgResult=0;
+			if (IsWindow(hwndList))	{
+				msgResult = SendMessage(hwndList, ZM_REQUEST_RECORDINGNAME, (WPARAM)buffer, lParam);
+			}
+
+			if (!msgResult)	{
+				if (IsWindow(hwndInfo))
+					SendMessage(hwndInfo, ZM_REQUEST_RECORDINGNAME, (WPARAM)buffer, lParam);
+			}
 
 			break;
 		case WM_DESTROY:
@@ -727,4 +745,24 @@ void UnsignedLongLongToString(ULONGLONG ull, char *s)
 	s[place+1]=0;
 
 	return;
+}
+
+int FilenameMpegOrNavToInfo(char *buffer, char *filename)
+{
+	char *finalperiod;
+	int i;
+
+	strcpy(buffer, filename);
+	finalperiod = strrchr(buffer, '.');
+	if (finalperiod)	finalperiod[0]=0;		//this'll change it to t:\rv\.333 (from t:\rv\.333.mpg)
+
+	finalperiod = strrchr(buffer, '.');
+	if (finalperiod)	{
+		i=0;
+		do {
+			finalperiod[i]=finalperiod[++i];
+		} while (finalperiod[i]);	//there MUST be a null, because we have a string
+	}
+
+	return i;
 }
