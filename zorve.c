@@ -183,6 +183,8 @@ void MainWndProc_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
 	DIRECTORY_INFO *lpDirectoryInfo;
 	MPEGWINDOW_INFO *lpMpegWindowInfo;
 
+	HWND hWndActiveMDIChild;	//the 'frontline' window (i.e. info, list, mpeg, nav)
+
 	char openfilename[MAX_PATH];
 	char *p;
 
@@ -201,7 +203,7 @@ void MainWndProc_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
 			if (!result)
 				return;
 
-			result = IndentifyFileType(openfilename);
+			result = IdentifyFileType(openfilename);
 			if (result==ZFT_INFO)	{
 				//This loads the infofile after popping up (or making) the infowindow
 				hwndInfo = InfoWindowCreateOrShow(hwndInfo, hwndMDIClient, hInstProgram);
@@ -257,8 +259,15 @@ void MainWndProc_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
 			PostMessage(hwnd,WM_CLOSE,0,0);
 			break;
 		case IDM_FILEEXPORT:
-			sprintf(outputbuffer, "hwnd %i, id %i, hwndCtl %i, codeNotify %i", (long)hwnd, id, (long)hwndCtl, codeNotify);
-			MessageBox(hwnd, outputbuffer, "Export",0);
+			hWndActiveMDIChild = GetWindow(GetWindow(hwnd, GW_CHILD), GW_CHILD);
+			//sprintf(outputbuffer, "hwnd %x, getwindow %x, id %i, hwndCtl %i, codeNotify %i", (long)hwnd, (long)hWndActiveMDIChild, id, (long)hwndCtl, codeNotify);
+			//MessageBox(hwnd, outputbuffer, "Export",0);
+
+			if ((hWndActiveMDIChild == hwndNav) && (hwndNav))	{
+				SendMessage(hwndNav, WM_COMMAND, IDM_FILEEXPORT, 0);
+			}
+
+
 			break;
 	}
 }
@@ -630,6 +639,8 @@ char * ReturnChannelNameFromPID(int pid)
 		 	return "C4";
 		case 0x01C4:
 		 	return "TV3+1";
+		case 0x01C5:
+			return "C42";
 		case 0x0226:
 		 	return "Maori TV";
 		case 0x0227:
@@ -647,7 +658,7 @@ char * ReturnChannelNameFromPID(int pid)
 }
 
 
-int IndentifyFileType(char *filename)
+int IdentifyFileType(char *filename)
 {
 
 	HANDLE hFile;
