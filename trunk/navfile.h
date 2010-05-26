@@ -26,7 +26,7 @@ struct sNavRecord {
 
    unsigned short s6;    //Always 8
 
-   unsigned long offsethi;    //The high-order long of the offset (l6)
+   unsigned long offsethi;    //The high-order long of the offset
 
    unsigned long offsetlo;    //Near linear, but varying increments averaging 12700 (max 69000, min 1800)
                         //Larger change of values generally coincide with sawtooth drop of s3
@@ -120,3 +120,5 @@ long NavWindowOnMouseWheel(HWND hwnd, short nDelta);
 int ReadRecordsFromNavFile(NAVWINDOW_INFO *navWindowInfo, unsigned long offset, NAV_RECORD* ptrRecord, long numRecords);
 HANDLE NavWindowLoadFile(HWND hwnd, char *openfilename);
 int NavWindowUnloadFile(HWND hwnd);	//closes the file handle, and frees the memory
+
+int NavExport(HWND hwnd);

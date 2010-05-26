@@ -101,6 +101,13 @@ LRESULT CALLBACK ChildWndNavProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam)
 		case WM_MOUSEWHEEL:
 			return NavWindowOnMouseWheel(hwnd, (short)HIWORD(wparam));
 			break;
+//Handle export, and also other toolbar commands
+		case WM_COMMAND:
+			if (LOWORD(wparam)==IDM_FILEEXPORT)	{
+				NavExport(hwnd);
+			}
+			break;
+
 		case WM_DESTROY:
 			NavWindowUnloadFile(hwnd);
 			break;
@@ -939,4 +946,69 @@ int NavWindowListHeaderHandleContextMenu(HWND hwnd, WPARAM wparam, LPARAM lparam
 	DestroyMenu(hMenu);
 
 	return 0;
+}
+
+
+int NavExport(HWND hwnd)
+{
+
+	OPENFILENAME	efn;
+	char exportFileNameBuffer[MAX_PATH];
+	BOOL	gsfn;
+
+	HANDLE exportedFile;
+	char headerBuffer[512];
+	char exportBuffer[512];
+	DWORD bytesWritten;
+
+	NAVWINDOW_INFO *navWindowInfo;
+	NAV_RECORD record;
+
+	long firstRecord;
+	long lastRecord;
+	long counter;
+
+	memset(&efn,0,sizeof(efn));
+	efn.lStructSize = sizeof(efn);
+	efn.hwndOwner = hwnd;
+	efn.hInstance = GetModuleHandle(NULL);
+	efn.lpstrFilter = "All Files\0*.*\0CSV file (*.csv)\0*.csv\0Text file (*.txt)\0*.txt\0";
+	efn.nFilterIndex = 2;
+	efn.lpstrFile = exportFileNameBuffer;
+	efn.nMaxFile = MAX_PATH;
+	efn.lpstrDefExt = "txt";
+	efn.lpstrTitle = "Export To";
+	efn.Flags= OFN_OVERWRITEPROMPT;
+
+	strcpy(exportFileNameBuffer, "*.csv");
+
+	gsfn = GetSaveFileName(&efn);
+
+
+	if (!gsfn)
+		return 0;
+
+	exportedFile = CreateFile(exportFileNameBuffer, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+
+
+	navWindowInfo=(NAVWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);	//get the point to window info
+	firstRecord=0;
+	lastRecord=MIN(navWindowInfo->fileInfo.numRecords-1, 2048);		//for the moment, limit it to 2048 records
+
+
+	sprintf(headerBuffer, "short0, tb2, tb4, offsethi, offsetlo, timer, short14, milliseconds, long20\r\n");
+	WriteFile(exportedFile, headerBuffer, strlen(headerBuffer), &bytesWritten, NULL);
+
+	for (counter=firstRecord; counter<=lastRecord; counter++)	{
+		ReadRecordsFromNavFile(navWindowInfo, counter, &record, 1);
+		sprintf(exportBuffer, "%u, %u, %u, %u, %u, %u, %u, %u, %u\r\n", record.s0, record.twobytes2, record.twobytes4, record.offsethi, record.offsetlo, record.timer, record.s14, record.milliseconds, record.l20);
+
+		//strcpy(exportBuffer,
+		WriteFile(exportedFile, exportBuffer, strlen(exportBuffer), &bytesWritten, NULL);
+	}
+
+
+	CloseHandle(exportedFile);
+
+	return 1;
 }

@@ -14,7 +14,7 @@
 #define MAX(a,b) (a > b ? a : b)
 #define MIN(a,b) (a < b ? a : b)
 
-int IndentifyFileType(char *filename);
+int IdentifyFileType(char *filename);
 
 void UnixTimeToFileTime(long unixtime, LPFILETIME pft);
 void ModJulianTimeToFileTime(int juliantime, LPFILETIME pft);
