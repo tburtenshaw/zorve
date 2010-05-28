@@ -70,3 +70,7 @@ void ZorveSetHwndList(HWND hwnd);
 
 #define ZM_INFO_CHANGEMPEGSTATUS (WM_USER+40)	//Lparam either -1, 0, 1
 #define ZM_INFO_CHANGENAVSTATUS (WM_USER+41)
+
+
+//Define timers
+#define IDT_MPEG_SCANDISPLAY 1
