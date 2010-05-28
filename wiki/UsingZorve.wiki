@@ -23,6 +23,8 @@ Often the set-top box will record incorrect information. For instance if you sta
 
 Sometimes you may want to put more information about the title. If you are recording _The Simpsons_ every week you may want to have the episode name show up when browsing to play back the good episodes and ignore the horribly unfunny HD episodes.
 
+http://zorve.googlecode.com/svn/wiki/example_changetitle.png
+
 == Adjusting title and description ==
 After you've clicked on a show you want to rename, the _File Information_ window will display its title and description.
 
