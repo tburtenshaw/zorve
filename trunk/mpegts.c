@@ -177,8 +177,11 @@ HANDLE MpegWindowLoadFile(HWND hwnd, char * mpegFile)
 	mpegWindowInfo->fileInfo.offset=mpegWindowInfo->fileInfo.firstSyncByte;
 
 	//Now start a thread that gradually loads in statistical information about the mpeg.
-	mpegWindowInfo->fileInfo.hFileAccessMutex = CreateMutex(NULL, FALSE, "fileaccessmutex");
+	mpegWindowInfo->fileInfo.hFileAccessMutex = CreateMutex(NULL, FALSE, "fileaccessmutex");	//mutex for accessing the file, so can jump to offsets while scanning
 	mpegWindowInfo->fileInfo.hBackgroundThread = CreateThread(NULL, (SIZE_T)0, (LPTHREAD_START_ROUTINE)MpegReadFileStats, &mpegWindowInfo->fileInfo, 0, NULL);
+
+	SetTimer(mpegWindowInfo->hwndFileDetail, IDT_MPEG_SCANDISPLAY, 300, NULL);
+
 	//MpegReadFileStats(&mpegWindowInfo->fileInfo);	//override the background thread for debugging
 
 	return mpegWindowInfo->fileInfo.hMpegFile;
@@ -220,7 +223,6 @@ DWORD WINAPI MpegReadFileStats(MPEGFILE_INFO *mpegFileInfo)
 				stay=0;
 		}
 		ReleaseMutex(mpegFileInfo->hFileAccessMutex);
-
 	}
 	SetFilePointer(mpegFileInfo->hMpegFile, 0, 0, FILE_BEGIN);
 	mpegFileInfo->offset=0;
@@ -459,8 +461,21 @@ LRESULT CALLBACK MpegFileInfoProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam
 
 LRESULT CALLBACK MpegFileDetailProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam)
 {
+	MPEGWINDOW_INFO *mpegWindowInfo;
 
 	switch(msg) {
+		case WM_TIMER:
+			if (wParam == IDT_MPEG_SCANDISPLAY)	{
+				//Every so often (depending on what the timer is set to) we update the display details
+				//We must also redraw the window, so we're not redrawing only half new things
+				mpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);	//get the point to window info
+				InvalidateRect(hwnd, NULL, FALSE);
+				if (!mpegWindowInfo->fileInfo.loadingInBackground)	{	//if we're no longer loading
+					KillTimer(hwnd, IDT_MPEG_SCANDISPLAY); //then kill the timer
+					InvalidateRect(mpegWindowInfo->hwndFileInfo, NULL, FALSE);	//and redraw the fileinfo part
+				}
+
+			}
 		case WM_PAINT:
 			MpegFileDetailPaint(hwnd);
 			break;

@@ -951,14 +951,25 @@ int NavWindowListHeaderHandleContextMenu(HWND hwnd, WPARAM wparam, LPARAM lparam
 
 int NavExport(HWND hwnd)
 {
+	//The memory allocated for each line
+	//(note the max line length is about eight lower, to give degree of safety with CRLFs or commas)
+	#define NAV_EXPORT_LINE_BUFFERSIZE 512
 
 	OPENFILENAME	efn;
 	char exportFileNameBuffer[MAX_PATH];
 	BOOL	gsfn;
 
 	HANDLE exportedFile;
-	char headerBuffer[512];
-	char exportBuffer[512];
+	char tempBuffer[64];
+	unsigned int	tempLength;	//the length of the temporary buffer
+
+	char headerBuffer[NAV_EXPORT_LINE_BUFFERSIZE];
+	char *hBufferPos;
+	char exportBuffer[NAV_EXPORT_LINE_BUFFERSIZE];
+	char *eBufferPos;
+	unsigned int	col;	//which column we are processing
+	unsigned int	notfirst;
+
 	DWORD bytesWritten;
 
 	NAVWINDOW_INFO *navWindowInfo;
@@ -988,22 +999,92 @@ int NavExport(HWND hwnd)
 	if (!gsfn)
 		return 0;
 
+	navWindowInfo=(NAVWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);	//get the point to window info
+
 	exportedFile = CreateFile(exportFileNameBuffer, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 
-
-	navWindowInfo=(NAVWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);	//get the point to window info
 	firstRecord=0;
 	lastRecord=MIN(navWindowInfo->fileInfo.numRecords-1, 2048);		//for the moment, limit it to 2048 records
 
+	hBufferPos = headerBuffer;
+	notfirst=0;
 
-	sprintf(headerBuffer, "short0, tb2, tb4, offsethi, offsetlo, timer, short14, milliseconds, long20\r\n");
+	for (col=0;col<23;col++)	{
+		if (navWindowInfo->widthColumn[col])	{
+			if (notfirst)	{//if this is not the first, we need to add comma-space
+				strcpy(hBufferPos, ", ");
+				hBufferPos+=2;
+			}
+
+			notfirst=1;
+			sprintf(tempBuffer,"%s", navWindowInfo->columnTitle[col]);
+			tempLength = strlen(tempBuffer);
+			if ((hBufferPos-headerBuffer+tempLength+2)<NAV_EXPORT_LINE_BUFFERSIZE-8)	{
+				strcpy(hBufferPos,tempBuffer);
+				hBufferPos+=tempLength;
+			}
+			else
+				col = 100;	//skip out if string too long
+
+		}
+
+	}
+	strcpy(hBufferPos,"\r\n");
+	notfirst=0;
+
 	WriteFile(exportedFile, headerBuffer, strlen(headerBuffer), &bytesWritten, NULL);
 
 	for (counter=firstRecord; counter<=lastRecord; counter++)	{
 		ReadRecordsFromNavFile(navWindowInfo, counter, &record, 1);
-		sprintf(exportBuffer, "%u, %u, %u, %u, %u, %u, %u, %u, %u\r\n", record.s0, record.twobytes2, record.twobytes4, record.offsethi, record.offsetlo, record.timer, record.s14, record.milliseconds, record.l20);
 
-		//strcpy(exportBuffer,
+		eBufferPos = exportBuffer;
+		for (col=0;col<23;col++)	{
+			if (navWindowInfo->widthColumn[col])	{
+				if (notfirst)	{//if this is not the first, we need to add comma-space
+					strcpy(eBufferPos, ", ");
+					eBufferPos+=2;
+				}
+
+				notfirst=1;
+
+				if (col==0)	sprintf(tempBuffer,"%u", counter);
+				if (col==1)	sprintf(tempBuffer,"%u", record.s0);
+				if (col==2)	sprintf(tempBuffer,"%u", record.twobytes2 & 0xFF);
+				if (col==3)	sprintf(tempBuffer,"%u", record.twobytes2 >> 8);
+				if (col==4)	sprintf(tempBuffer,"%u", record.twobytes4 & 0xFF);
+				if (col==5)	sprintf(tempBuffer,"%u", record.twobytes4 >> 8);
+				if (col==6)	sprintf(tempBuffer,"%u", record.s6);
+				if (col==7) UnsignedLongLongToString((ULONGLONG)record.offsetlo + (ULONGLONG)record.offsethi * (ULONGLONG)0x100000000, tempBuffer);
+				if (col==8)	sprintf(tempBuffer,"%u", record.timer);
+				if (col==9)	sprintf(tempBuffer,"%u", record.s14);
+				if (col==10)	sprintf(tempBuffer,"%u", record.s16);
+				if (col==11)	sprintf(tempBuffer,"%u", record.milliseconds);
+				if (col==12)	sprintf(tempBuffer,"%u", record.l1Czero);
+				if (col==13)	sprintf(tempBuffer,"%u", record.l20);
+				if (col==14)	sprintf(tempBuffer,"%u", record.s24);
+				if (col==15)	sprintf(tempBuffer,"%u", record.s26zero);
+				if (col==16)	sprintf(tempBuffer,"%u", record.l28zero);
+				if (col==17)	sprintf(tempBuffer,"%u", record.l2Czero);
+				if (col==18)	sprintf(tempBuffer,"%u", record.l30zero);
+				if (col==19)	sprintf(tempBuffer,"%u", record.l34zero);
+				if (col==20)	sprintf(tempBuffer,"%u", record.l38zero);
+				if (col==21)	sprintf(tempBuffer,"%u", record.l3Czero);
+				if (col==22)	sprintf(tempBuffer,"%i", -1);
+				//need to check for overruns
+				tempLength = strlen(tempBuffer);
+
+				if ((eBufferPos-exportBuffer+tempLength+2)<NAV_EXPORT_LINE_BUFFERSIZE-8)	{
+					strcpy(eBufferPos,tempBuffer);
+					eBufferPos+=tempLength;
+				}
+				else
+					col = 100;	//skip out if string too long
+			}
+
+		}
+		strcpy(eBufferPos,"\r\n");
+		notfirst=0;
+
 		WriteFile(exportedFile, exportBuffer, strlen(exportBuffer), &bytesWritten, NULL);
 	}
 
