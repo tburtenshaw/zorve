@@ -173,6 +173,7 @@ HANDLE MpegWindowLoadFile(HWND hwnd, char * mpegFile)
 
 	mpegWindowInfo->fileInfo.filesize=GetFileSize(mpegWindowInfo->fileInfo.hMpegFile, NULL);
 
+	mpegWindowInfo->fileInfo.firstSyncByte = 0;	//set the start seek position to zero
 	MpegTSFindSyncByte(mpegWindowInfo->fileInfo.hMpegFile, &mpegWindowInfo->fileInfo.firstSyncByte);
 	mpegWindowInfo->fileInfo.offset=mpegWindowInfo->fileInfo.firstSyncByte;
 
@@ -238,31 +239,30 @@ int MpegTSFindSyncByte(HANDLE hFile, ULONGLONG * syncbyteOffset)
 
 	BOOL readResult;
 	int occurence;
-	ULONGLONG offset;
+	LARGE_INTEGER offset;
 	int justskipped;	//if we have just found one and skipped some bytes, we'll go back
 
 	LARGE_INTEGER largeint_filesize;
-	unsigned long filesize;
 
 	GetFileSizeEx(hFile, &largeint_filesize);
-	filesize=largeint_filesize.LowPart;
 
-	offset=0;
+	offset.QuadPart=*syncbyteOffset;	//the syncbyte offset will be our starting position
 	occurence = 0;
 	justskipped=0;
 
-	SetFilePointer(hFile, offset, NULL, FILE_BEGIN);
+	SetFilePointer(hFile, offset.LowPart, &offset.HighPart, FILE_BEGIN);
 
 	readResult = ReadFile(hFile, &testbyte, 1, &n, NULL);
-	while ((readResult) && (offset<filesize))	{
+	while ((readResult) && (offset.QuadPart<largeint_filesize.QuadPart))	{
 		if (testbyte == 0x47)	{
 			occurence++;
 			if (occurence==5)	{
-				*syncbyteOffset = offset-752;
-				SetFilePointer(hFile, *syncbyteOffset, NULL, FILE_BEGIN);
+				offset.QuadPart -= 752;
+				*syncbyteOffset = offset.QuadPart;
+				SetFilePointer(hFile, offset.LowPart, &offset.HighPart, FILE_BEGIN);
 				return 1;
 			}
-			offset+=188;
+			offset.QuadPart+=188;
 			justskipped=1;
 			readResult = SetFilePointer(hFile, 187, NULL, FILE_CURRENT);
 			if (readResult==INVALID_SET_FILE_POINTER)
@@ -271,14 +271,14 @@ int MpegTSFindSyncByte(HANDLE hFile, ULONGLONG * syncbyteOffset)
 		}
 		else	{
 			if (justskipped)	{
-				offset-=188;
+				offset.QuadPart-=188;
 				readResult = SetFilePointer(hFile, -188, NULL, FILE_CURRENT);
 				if (readResult==INVALID_SET_FILE_POINTER)
 					return 0;
 				justskipped=0;
 			}
 			occurence=0;
-			offset++;
+			offset.QuadPart++;
 
 			readResult = ReadFile(hFile, &testbyte, 1, &n, NULL);
 

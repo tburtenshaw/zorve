@@ -55,7 +55,7 @@ struct sMpegFileInfo	{
 	unsigned long filesize;
 	char filename[MAX_PATH];
 
-	ULONGLONG firstSyncByte;
+	ULONGLONG firstSyncByte;		//actually should be signed longlong, for compatibility with setfilepointer
 	ULONGLONG offset;
 	ULONGLONG displayOffset;
 
