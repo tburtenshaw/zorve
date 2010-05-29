@@ -711,6 +711,8 @@ int IdentifyFileType(char *filename)
 		return ZFT_UNKNOWN;
 	}
 
+	//If we find a sync byte (actually five in a row) then it's an MPEG-TS
+	mpegSyncByte=0;	//set the start seek position to 0
 	if (MpegTSFindSyncByte(hFile, &mpegSyncByte))	{
 		CloseHandle(hFile);
 		return ZFT_MPEGTS;

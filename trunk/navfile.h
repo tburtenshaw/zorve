@@ -6,14 +6,11 @@ typedef struct sNavFileInfo NAVFILE_INFO;
 typedef struct sNavRecord NAV_RECORD;
 
 struct sNavRecord {
-   unsigned short s0;    //Sawtooth pattern, with same increments as L6
+   unsigned short s0;    //Sawtooth pattern
                          //Drops everytime lowbyte of var2 increases.
-
    unsigned short twobytes2; //LOWBYTE
-                             //The low byte increments by 1 every few records
-                             //Its increase is coincidental with the sawtooth drop of s1
-                             //It resets itself at the same time as l12 does.
-                             //It usually stays ten or under (usually in the single digits)
+                             //This is the high order byte complementing short0
+							 //This means that the resultant 24 bit value is exactly s24 different from long20.
 
                              //HIBYTE
                              //The high byte seems to be of value either 1, 2 or 3
@@ -38,20 +35,19 @@ struct sNavRecord {
                         //Could this be Presentation or Decoding Time Stamp?
                         //Looks to be 50% of program_clock_reference_base (this is a 33bit value in the MPEG-TS)
                         //Actually, it seems to be the 32 high bits of the 33 bit PTS.
-   unsigned short s14;
 
-   unsigned short s16;    //Usually zero, occasionally 1 or 2
+   unsigned long l14;	//This long integer is VERY close to the difference between offsets
+   						//It is off by 6 except during a drop in l20, where it is 44 different
 
-   unsigned long milliseconds;        //Is directly proportional to L7. This is the number of milliseconds
+   unsigned long milliseconds;        //Is directly proportional to the timer. This is the number of milliseconds
 
    unsigned long l1Czero;    //Zero
 
-   unsigned long l20;    //Sawtooth pattern.
-                         //Goes up by exactly same as l6 (about 9000-20000) each record.
-                         //Period exactly same as s3, except fall happens one record prior.
+   unsigned long l20;    //Sawtooth pattern. Nearly same as first 24 bits of record (off by 30)
+                         //Goes up by exactly same as offset each record.
                          //Maximum not limited by type of int
 
-   unsigned short s24;   //Always 30
+   unsigned short s24;   //The difference between l20 and the 24 bits int at 0x00
 
    unsigned short s26zero;   //All these below are typically (?always) zero
    unsigned long l28zero;    //

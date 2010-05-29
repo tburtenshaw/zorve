@@ -173,6 +173,7 @@ LRESULT CALLBACK NavRecordListViewFileProc(HWND hwnd,UINT msg, WPARAM wparam,LPA
 			NavScrollUpdate(hwnd, navWindowInfo);
 			if (navWindowInfo->firstDisplayedRecord + navWindowInfo->numDisplayedLines > navWindowInfo->fileInfo.numRecords)	{
 				navWindowInfo->firstDisplayedRecord=navWindowInfo->fileInfo.numRecords - navWindowInfo->numDisplayedLines;
+				if (navWindowInfo->firstDisplayedRecord<0) navWindowInfo->firstDisplayedRecord=0;
 				NavScrollUpdate(hwnd, navWindowInfo);
 				InvalidateRect(hwnd, NULL, FALSE);
 			}
@@ -259,7 +260,7 @@ LRESULT CALLBACK NavRecordListViewHeaderProc(HWND hwnd,UINT msg, WPARAM wparam,L
 				InvalidateRect(navWindowInfo->hwndRecordListHeader, NULL, FALSE);
 			}
 
-			if ((c>=100) && (c<122))	{
+			if ((c>=100) && (c<120))	{
 				navWindowInfo=(NAVWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);
 				c-=100;
 
@@ -286,7 +287,7 @@ int NavRecordListHeaderCheckAdjustBar(NAVWINDOW_INFO * navWindowInfo, int x, int
 
 	int columnx=0;
 
-	for (c=0;c<22;c++)	{
+	for (c=0;c<20;c++)	{
 		columnx+=navWindowInfo->widthColumn[c];
 		if ((x>columnx-4) && (x<columnx+4))
 			return c;
@@ -345,7 +346,7 @@ int	NavRecordListHeaderPaint(HWND hwnd)
 	outputRect.left=clientRect.left;
 	outputRect.right=clientRect.left + navWindowInfo->widthColumn[0];
 
-	for (c=0; c<22; c++)	{
+	for (c=0; c<20; c++)	{
 
 		if (navWindowInfo->widthColumn[c]>0)	{
 			//margin of two for control
@@ -430,7 +431,7 @@ int NavRecordListViewPaint(HWND hwnd)
 		outputRect.bottom=y+heightFont;
 		columnStart=0;
 
-		for (c=0;c<22;c++)	{
+		for (c=0;c<20;c++)	{
 			outputRect.left=columnStart;
 			outputRect.right=columnStart+navWindowInfo->widthColumn[c];
 
@@ -440,70 +441,66 @@ int NavRecordListViewPaint(HWND hwnd)
 						sprintf(buffer, "%i (0x%x)",navWindowInfo->firstDisplayedRecord+i, (navWindowInfo->firstDisplayedRecord+i)*sizeof(NAV_RECORD));
 						break;
 					case 1:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s0);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s0
+											+ (navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].twobytes2 & 0xFF)*256*256
+						);
 						break;
 					case 2:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].twobytes2 & 0xFF);
-						break;
-					case 3:
 						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].twobytes2 >> 8);
 						break;
-					case 4:
+					case 3:
 						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].twobytes4 & 0xFF);
 						break;
-					case 5:
+					case 4:
 						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].twobytes4 >> 8);
 						break;
-					case 6:
+					case 5:
 						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s6);
 						break;
-					case 7:
+					case 6:
 						UnsignedLongLongToString((ULONGLONG)navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].offsetlo +
 					   							   (ULONGLONG)navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].offsethi * (ULONGLONG)0x100000000,
 												  	 buffer);
 						//sprintf(buffer, "%u %u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].offsetlo,navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].offsethi);
 						break;
-					case 8:
+					case 7:
 						//The time stamp is the 300x the number of 1/27000000ths, Olevia stores this as a 32 bit value (half the original)
 						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].timer);
 						break;
+					case 8:
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l14);
+						break;
 					case 9:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s14);
-						break;
-					case 10:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s16);
-						break;
-					case 11:
 						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].milliseconds);
 						break;
-					case 12:
+					case 10:
 						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l1Czero);
 						break;
-					case 13:
+					case 11:
 						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l20);
 						break;
-					case 14:
+					case 12:
 						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s24);
 						break;
-					case 15:
+					case 13:
 						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s26zero);
 						break;
-					case 16:
+					case 14:
 						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l28zero);
 						break;
-					case 17:
+					case 15:
 						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l2Czero);
 						break;
-					case 18:
+					case 16:
 						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l30zero);
 						break;
-					case 19:
+					case 17:
 						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l34zero);
 						break;
-					case 20:
+					case 18:
 						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l38zero);
 						break;
-					case 21:
+					case 19:
 						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l3Czero);
 						break;
 
@@ -559,48 +556,44 @@ void NavInitiateColumnWidths(NAVWINDOW_INFO * navWindowInfo)
 	navWindowInfo->widthColumn[2]=40;
 	navWindowInfo->widthColumn[3]=40;
 	navWindowInfo->widthColumn[4]=40;
-	navWindowInfo->widthColumn[5]=40;
-	navWindowInfo->widthColumn[6]=0;
+	navWindowInfo->widthColumn[5]=0;
+	navWindowInfo->widthColumn[6]=80;
 	navWindowInfo->widthColumn[7]=80;
-	navWindowInfo->widthColumn[8]=80;
-	navWindowInfo->widthColumn[9]=70;
-	navWindowInfo->widthColumn[10]=40;
-	navWindowInfo->widthColumn[11]=80;
-	navWindowInfo->widthColumn[12]=0;
-	navWindowInfo->widthColumn[13]=70;
-	navWindowInfo->widthColumn[14]=40;
+	navWindowInfo->widthColumn[8]=70;
+	navWindowInfo->widthColumn[9]=80;
+	navWindowInfo->widthColumn[10]=0;
+	navWindowInfo->widthColumn[11]=70;
+	navWindowInfo->widthColumn[12]=40;
+	navWindowInfo->widthColumn[13]=0;
+	navWindowInfo->widthColumn[14]=0;
 	navWindowInfo->widthColumn[15]=0;
 	navWindowInfo->widthColumn[16]=0;
 	navWindowInfo->widthColumn[17]=0;
 	navWindowInfo->widthColumn[18]=0;
 	navWindowInfo->widthColumn[19]=0;
 	navWindowInfo->widthColumn[20]=0;
-	navWindowInfo->widthColumn[21]=0;
-	navWindowInfo->widthColumn[22]=0;
 
 	sprintf(navWindowInfo->columnTitle[0], "Number");
-	sprintf(navWindowInfo->columnTitle[1], "Short0");
-	sprintf(navWindowInfo->columnTitle[2], "Byte2");
-	sprintf(navWindowInfo->columnTitle[3], "Byte3");
-	sprintf(navWindowInfo->columnTitle[4], "Byte4");
-	sprintf(navWindowInfo->columnTitle[5], "Byte5");
-	sprintf(navWindowInfo->columnTitle[6], "Short6");
-	sprintf(navWindowInfo->columnTitle[7], "Offset");
-	sprintf(navWindowInfo->columnTitle[8], "Timer");
-	sprintf(navWindowInfo->columnTitle[9], "Short14");
-	sprintf(navWindowInfo->columnTitle[10], "Short16");
-	sprintf(navWindowInfo->columnTitle[11], "Milliseconds");
-	sprintf(navWindowInfo->columnTitle[12], "Long1Cz");
-	sprintf(navWindowInfo->columnTitle[13], "Long20");
-	sprintf(navWindowInfo->columnTitle[14], "Short24");
-	sprintf(navWindowInfo->columnTitle[15], "Short26");
-	sprintf(navWindowInfo->columnTitle[16], "Long28z");
-	sprintf(navWindowInfo->columnTitle[17], "Long2Cz");
-	sprintf(navWindowInfo->columnTitle[18], "Long30z");
-	sprintf(navWindowInfo->columnTitle[19], "Long34z");
-	sprintf(navWindowInfo->columnTitle[20], "Long38z");
-	sprintf(navWindowInfo->columnTitle[21], "Long3Cz");
-	sprintf(navWindowInfo->columnTitle[22], "empty");
+	sprintf(navWindowInfo->columnTitle[1], "TripleOctet0");
+	sprintf(navWindowInfo->columnTitle[2], "Byte3");
+	sprintf(navWindowInfo->columnTitle[3], "Byte4");
+	sprintf(navWindowInfo->columnTitle[4], "Byte5");
+	sprintf(navWindowInfo->columnTitle[5], "Short6");
+	sprintf(navWindowInfo->columnTitle[6], "Offset");
+	sprintf(navWindowInfo->columnTitle[7], "Timer");
+	sprintf(navWindowInfo->columnTitle[8], "Long14");
+	sprintf(navWindowInfo->columnTitle[9], "Milliseconds");
+	sprintf(navWindowInfo->columnTitle[10], "Long1Cz");
+	sprintf(navWindowInfo->columnTitle[11], "Long20");
+	sprintf(navWindowInfo->columnTitle[12], "Short24");
+	sprintf(navWindowInfo->columnTitle[13], "Short26");
+	sprintf(navWindowInfo->columnTitle[14], "Long28z");
+	sprintf(navWindowInfo->columnTitle[15], "Long2Cz");
+	sprintf(navWindowInfo->columnTitle[16], "Long30z");
+	sprintf(navWindowInfo->columnTitle[17], "Long34z");
+	sprintf(navWindowInfo->columnTitle[18], "Long38z");
+	sprintf(navWindowInfo->columnTitle[19], "Long3Cz");
+	sprintf(navWindowInfo->columnTitle[20], "empty");
 
 
 	return;
@@ -924,7 +917,7 @@ int NavWindowListHeaderHandleContextMenu(HWND hwnd, WPARAM wparam, LPARAM lparam
 	menuItemInfo.fMask = MIIM_STRING|MIIM_STATE|MIIM_ID;
 	menuItemInfo.fType = MFT_STRING;
 
-	for (c=0; c<22; c++)	{
+	for (c=0; c<20; c++)	{
 
 		menuItemInfo.dwTypeData=navWindowInfo->columnTitle[c];
 		menuItemInfo.cch = strlen(navWindowInfo->columnTitle[c]);
@@ -1004,12 +997,12 @@ int NavExport(HWND hwnd)
 	exportedFile = CreateFile(exportFileNameBuffer, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 
 	firstRecord=0;
-	lastRecord=MIN(navWindowInfo->fileInfo.numRecords-1, 2048);		//for the moment, limit it to 2048 records
+	lastRecord=MIN(navWindowInfo->fileInfo.numRecords-1, 65534);		//for the moment, limit it to 65k records
 
 	hBufferPos = headerBuffer;
 	notfirst=0;
 
-	for (col=0;col<23;col++)	{
+	for (col=0;col<20;col++)	{
 		if (navWindowInfo->widthColumn[col])	{
 			if (notfirst)	{//if this is not the first, we need to add comma-space
 				strcpy(hBufferPos, ", ");
@@ -1038,7 +1031,7 @@ int NavExport(HWND hwnd)
 		ReadRecordsFromNavFile(navWindowInfo, counter, &record, 1);
 
 		eBufferPos = exportBuffer;
-		for (col=0;col<23;col++)	{
+		for (col=0;col<20;col++)	{
 			if (navWindowInfo->widthColumn[col])	{
 				if (notfirst)	{//if this is not the first, we need to add comma-space
 					strcpy(eBufferPos, ", ");
@@ -1048,28 +1041,26 @@ int NavExport(HWND hwnd)
 				notfirst=1;
 
 				if (col==0)	sprintf(tempBuffer,"%u", counter);
-				if (col==1)	sprintf(tempBuffer,"%u", record.s0);
-				if (col==2)	sprintf(tempBuffer,"%u", record.twobytes2 & 0xFF);
-				if (col==3)	sprintf(tempBuffer,"%u", record.twobytes2 >> 8);
-				if (col==4)	sprintf(tempBuffer,"%u", record.twobytes4 & 0xFF);
-				if (col==5)	sprintf(tempBuffer,"%u", record.twobytes4 >> 8);
-				if (col==6)	sprintf(tempBuffer,"%u", record.s6);
-				if (col==7) UnsignedLongLongToString((ULONGLONG)record.offsetlo + (ULONGLONG)record.offsethi * (ULONGLONG)0x100000000, tempBuffer);
-				if (col==8)	sprintf(tempBuffer,"%u", record.timer);
-				if (col==9)	sprintf(tempBuffer,"%u", record.s14);
-				if (col==10)	sprintf(tempBuffer,"%u", record.s16);
-				if (col==11)	sprintf(tempBuffer,"%u", record.milliseconds);
-				if (col==12)	sprintf(tempBuffer,"%u", record.l1Czero);
-				if (col==13)	sprintf(tempBuffer,"%u", record.l20);
-				if (col==14)	sprintf(tempBuffer,"%u", record.s24);
-				if (col==15)	sprintf(tempBuffer,"%u", record.s26zero);
-				if (col==16)	sprintf(tempBuffer,"%u", record.l28zero);
-				if (col==17)	sprintf(tempBuffer,"%u", record.l2Czero);
-				if (col==18)	sprintf(tempBuffer,"%u", record.l30zero);
-				if (col==19)	sprintf(tempBuffer,"%u", record.l34zero);
-				if (col==20)	sprintf(tempBuffer,"%u", record.l38zero);
-				if (col==21)	sprintf(tempBuffer,"%u", record.l3Czero);
-				if (col==22)	sprintf(tempBuffer,"%i", -1);
+				if (col==1)	sprintf(tempBuffer,"%u", record.s0 +(record.twobytes2 & 0xFF)*256*256);
+				if (col==2)	sprintf(tempBuffer,"%u", record.twobytes2 >> 8);
+				if (col==3)	sprintf(tempBuffer,"%u", record.twobytes4 & 0xFF);
+				if (col==4)	sprintf(tempBuffer,"%u", record.twobytes4 >> 8);
+				if (col==5)	sprintf(tempBuffer,"%u", record.s6);
+				if (col==6) UnsignedLongLongToString((ULONGLONG)record.offsetlo + (ULONGLONG)record.offsethi * (ULONGLONG)0x100000000, tempBuffer);
+				if (col==7)	sprintf(tempBuffer,"%u", record.timer);
+				if (col==8)	sprintf(tempBuffer,"%u", record.l14);
+				if (col==9)	sprintf(tempBuffer,"%u", record.milliseconds);
+				if (col==10)	sprintf(tempBuffer,"%u", record.l1Czero);
+				if (col==11)	sprintf(tempBuffer,"%u", record.l20);
+				if (col==12)	sprintf(tempBuffer,"%u", record.s24);
+				if (col==13)	sprintf(tempBuffer,"%u", record.s26zero);
+				if (col==14)	sprintf(tempBuffer,"%u", record.l28zero);
+				if (col==15)	sprintf(tempBuffer,"%u", record.l2Czero);
+				if (col==16)	sprintf(tempBuffer,"%u", record.l30zero);
+				if (col==17)	sprintf(tempBuffer,"%u", record.l34zero);
+				if (col==18)	sprintf(tempBuffer,"%u", record.l38zero);
+				if (col==19)	sprintf(tempBuffer,"%u", record.l3Czero);
+				if (col==20)	sprintf(tempBuffer,"%i", -1);
 				//need to check for overruns
 				tempLength = strlen(tempBuffer);
 
