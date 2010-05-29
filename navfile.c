@@ -955,6 +955,7 @@ int NavExport(HWND hwnd)
 	HANDLE exportedFile;
 	char tempBuffer[64];
 	unsigned int	tempLength;	//the length of the temporary buffer
+	DWORD lastError;
 
 	char headerBuffer[NAV_EXPORT_LINE_BUFFERSIZE];
 	char *hBufferPos;
@@ -964,6 +965,7 @@ int NavExport(HWND hwnd)
 	unsigned int	notfirst;
 
 	DWORD bytesWritten;
+
 
 	NAVWINDOW_INFO *navWindowInfo;
 	NAV_RECORD record;
@@ -995,6 +997,21 @@ int NavExport(HWND hwnd)
 	navWindowInfo=(NAVWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);	//get the point to window info
 
 	exportedFile = CreateFile(exportFileNameBuffer, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+
+	if (exportedFile == INVALID_HANDLE_VALUE)	{
+		lastError= GetLastError();
+
+		switch (lastError)	{
+			case ERROR_ACCESS_DENIED:
+				MessageBox(hwnd, "Zorve cannot access the filename or folder you have given. Please try another file.", "Access denied", MB_ICONEXCLAMATION|MB_OK);
+				return 0;
+				break;
+			default:
+				MessageBox(hwnd, "Zorve was not able to create this file. Please try again.", "Error creating file", MB_ICONEXCLAMATION|MB_OK);
+				return 0;
+		}
+	}
+
 
 	firstRecord=0;
 	lastRecord=MIN(navWindowInfo->fileInfo.numRecords-1, 65534);		//for the moment, limit it to 65k records
