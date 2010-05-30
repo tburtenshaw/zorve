@@ -21,7 +21,7 @@ void ModJulianTimeToFileTime(int juliantime, LPFILETIME pft);
 void BytesDisplayNice(long bytes, char *formatString, int thresholdratio, char *outputString);
 void DurationShortFormatDHMS(long duration, char *outputString);
 WORD swap_endian_word(WORD i);
-void UnsignedLongLongToString(ULONGLONG ull, char *s);
+int UnsignedLongLongToString(ULONGLONG ull, char *s);
 char * ReturnChannelNameFromPID(int pid);
 int FilenameMpegOrNavToInfo(char *buffer, char *filename);	//returns number of chars before .
 

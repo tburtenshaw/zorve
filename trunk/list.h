@@ -79,6 +79,7 @@ int ListScrollUpdate(HWND hwnd, LISTWINDOW_INFO *lpListWindowInfo);
 int ListWindowHandleVScroll(HWND hwnd, WPARAM wparam, LPARAM lparam);
 int ListWindowHandleKeydown(HWND hwnd, WPARAM wparam, LPARAM lparam);
 long ListWindowOnMouseWheel(HWND hwnd, short nDelta);
+int ListWindowHandleContextMenu(HWND hwnd, WPARAM wparam, LPARAM lparam);
 
 //File stuff
 int SetListDirectory(DIRECTORY_INFO *lpDirectoryInfo, char *directorypath);
