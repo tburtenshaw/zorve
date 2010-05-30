@@ -84,8 +84,12 @@ struct sMpegWindowInfo	{
 	HWND	hwndBlockDetail;
 	HWND	hwndBlockSlideSelector;
 	HWND	hwndHexView;
+
+	//In the block info section
 	HWND	hwndNextButton;
 	HWND	hwndPrevButton;
+	HWND	hwndPositionEditbox;
+	HWND	hwndSeekButton;
 
 	char recordingname[120];
 };

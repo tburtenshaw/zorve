@@ -1006,6 +1006,10 @@ int NavExport(HWND hwnd)
 				MessageBox(hwnd, "Zorve cannot access the filename or folder you have given. Please try another file.", "Access denied", MB_ICONEXCLAMATION|MB_OK);
 				return 0;
 				break;
+			case ERROR_SHARING_VIOLATION:
+				MessageBox(hwnd, "There is a sharing violation. Another program is using this file. Please try another filename.", "Sharing violation", MB_ICONEXCLAMATION|MB_OK);
+				return 0;
+				break;
 			default:
 				MessageBox(hwnd, "Zorve was not able to create this file. Please try again.", "Error creating file", MB_ICONEXCLAMATION|MB_OK);
 				return 0;

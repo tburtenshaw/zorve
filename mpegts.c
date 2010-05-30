@@ -491,6 +491,7 @@ LRESULT CALLBACK MpegPacketInfoProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lPar
 {
 	HINSTANCE hInst;
 	MPEGWINDOW_INFO *mpegWindowInfo;
+	HFONT	hSmallFont;
 
 	switch(msg) {
 		case WM_CREATE:
@@ -499,10 +500,37 @@ LRESULT CALLBACK MpegPacketInfoProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lPar
 			mpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);	//get the point to window info
 			mpegWindowInfo->hwndNextButton =	CreateWindow("BUTTON", "Next",
 					   					WS_CHILD|WS_VISIBLE|WS_TABSTOP|WS_BORDER|BS_PUSHBUTTON,
-									    100,90,60,24, hwnd, NULL, hInst, NULL);
+									    100,90,60,23, hwnd, NULL, hInst, NULL);
 			mpegWindowInfo->hwndPrevButton =	CreateWindow("BUTTON", "Prev",
 					   					WS_CHILD|WS_VISIBLE|WS_TABSTOP|WS_BORDER|BS_PUSHBUTTON,
-									    20,90,60,24, hwnd, NULL, hInst, NULL);
+									    20,90,60,23, hwnd, NULL, hInst, NULL);
+
+			mpegWindowInfo->hwndPositionEditbox =	CreateWindow("EDIT", "Position",
+				    					WS_CHILD|WS_VISIBLE|ES_LEFT|WS_TABSTOP|WS_BORDER,
+									    30,60,80,18, hwnd, NULL, hInst, NULL);
+			SendMessage(mpegWindowInfo->hwndPositionEditbox, EM_LIMITTEXT, 20, 0);	//shouldn't be any offset longer than 20 digits
+
+			mpegWindowInfo->hwndSeekButton =	CreateWindow("BUTTON", "Seek",
+					   					WS_CHILD|WS_VISIBLE|WS_TABSTOP|WS_BORDER|BS_PUSHBUTTON,
+									    120,60,60,23, hwnd, NULL, hInst, NULL);
+
+
+
+
+			hSmallFont = CreateFont(
+				MulDiv(10, GetDeviceCaps(GetDC(hwnd), LOGPIXELSY), 72),
+				0,0,0,FW_NORMAL,
+				FALSE,FALSE,FALSE,
+				DEFAULT_CHARSET,OUT_OUTLINE_PRECIS,
+                CLIP_DEFAULT_PRECIS,NONANTIALIASED_QUALITY, VARIABLE_PITCH|FF_SWISS,"MS Shell Dlg");
+			//NEED TO DESTROY THIS FONT ONCE WINDOW CLOSES (consider moving it to top mpegts window, and sharing it)
+
+
+			SendMessage(mpegWindowInfo->hwndNextButton, WM_SETFONT, (WPARAM)hSmallFont, 0);
+			SendMessage(mpegWindowInfo->hwndPrevButton, WM_SETFONT, (WPARAM)hSmallFont, 0);
+			SendMessage(mpegWindowInfo->hwndPositionEditbox, WM_SETFONT, (WPARAM)hSmallFont, 0);
+			SendMessage(mpegWindowInfo->hwndSeekButton, WM_SETFONT, (WPARAM)hSmallFont, 0);
+
 			break;
 
 		case WM_PAINT:
@@ -821,7 +849,7 @@ int MpegPacketInfoPaint(HWND hwnd)
 	outputRect.bottom=clientRect.top+y+heightMidFont;
 
 	//Packet number
-	sprintf(buffer, "Packet: %u (%u)", (long)(mpegWindowInfo->fileInfo.displayOffset/188), (long)(mpegWindowInfo->fileInfo.displayOffset));
+	sprintf(buffer, "Packet: %u (%u)", (long)(mpegWindowInfo->fileInfo.displayOffset/188), (long)(mpegWindowInfo->fileInfo.displayOffset)-188);
 	ExtTextOut(hdc, ZORVEWINDOWMARGIN, y, ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
 	y+=heightMidFont;
 
@@ -915,6 +943,7 @@ BOOL MpegChangePacket(MPEGWINDOW_INFO *mpegWindowInfo, LPARAM lParam)
 {
 	int	readPacket=0;
 	unsigned long tempOffset;
+	char positionString[24];
 
 
 	if (lParam == (LPARAM)mpegWindowInfo->hwndPrevButton)	{
@@ -929,6 +958,23 @@ BOOL MpegChangePacket(MPEGWINDOW_INFO *mpegWindowInfo, LPARAM lParam)
 
 		readPacket=1;
 	}
+
+	if (lParam == (LPARAM)mpegWindowInfo->hwndSeekButton)	{
+
+		SendMessage(mpegWindowInfo->hwndPositionEditbox, WM_GETTEXT, 20, (LPARAM)&positionString);
+
+		//Give the opportunity for 0x to be entered as first two digits and regard as hexadecimal
+		if ((positionString[0] == '0') && ((positionString[1] == 'x') || (positionString[1] == 'X')))
+			mpegWindowInfo->fileInfo.displayOffset = strtoll(positionString+2, NULL ,16);
+		else	//otherwise default to decimal
+			mpegWindowInfo->fileInfo.displayOffset = strtoll(positionString, NULL ,10);
+
+		MpegTSFindSyncByte(mpegWindowInfo->fileInfo.hMpegFile, &mpegWindowInfo->fileInfo.displayOffset);
+
+
+		readPacket = 1;
+	}
+
 
 	if (readPacket)	{
 		if (mpegWindowInfo->fileInfo.loadingInBackground)	{
