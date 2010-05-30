@@ -215,7 +215,7 @@ LRESULT CALLBACK ChildWndInfoProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 			memset(infoFile, 0, sizeof(INFOFILE_INFO));
 
 			infoFile->windowInfo.editHwndRecording =	CreateWindow("EDIT", "Recording name",
-				    					WS_CHILD|WS_VISIBLE|ES_LEFT|WS_TABSTOP|WS_BORDER|ES_AUTOHSCROLL,
+				    					WS_CHILD|WS_VISIBLE|ES_LEFT|WS_GROUP|WS_TABSTOP|WS_BORDER|ES_AUTOHSCROLL,
 									    100,20,0,0, hwnd, NULL, hInst, NULL);
 			SendMessage(infoFile->windowInfo.editHwndRecording, EM_LIMITTEXT, 50, 0);	//limit text to 50 chars
 
@@ -394,7 +394,7 @@ void PaintInfoWindow(HWND hwnd)
 	textRect.top=y; textRect.bottom=y+height+margin;
 	ModJulianTimeToFileTime(infoFile->modjulianday, &filetime);
 	FileTimeToSystemTime(&filetime, &systemtime);
-	sprintf(outputText, "Julian Date: %i/%i/%i, Bytewise Time: %02i:%02i", systemtime.wDay, systemtime.wMonth, systemtime.wYear, infoFile->decimalbyteHour, infoFile->decimalbyteMinute);
+	sprintf(outputText, "Original Date/Time: %i/%i/%i, %02i:%02i", systemtime.wDay, systemtime.wMonth, systemtime.wYear, infoFile->decimalbyteHour, infoFile->decimalbyteMinute);
 	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, outputText, strlen(outputText), NULL);
 	y+=height+margin;
 
@@ -406,7 +406,7 @@ void PaintInfoWindow(HWND hwnd)
 	GetTimeZoneInformation(&tzi);
 
 	WideCharToMultiByte(CP_ACP, 0, &tzi.StandardName, -1, &timezonename[0], 32, NULL, NULL);
-	sprintf(outputText, "Unix Date/Time: %i/%i/%i, %02i:%02i:%02i (%s)", systemtime.wDay, systemtime.wMonth, systemtime.wYear, systemtime.wHour, systemtime.wMinute, systemtime.wSecond, timezonename);
+	sprintf(outputText, "Display Date/Time: %i/%i/%i, %02i:%02i:%02i (%s)", systemtime.wDay, systemtime.wMonth, systemtime.wYear, systemtime.wHour, systemtime.wMinute, systemtime.wSecond, timezonename);
 	ExtTextOut(hdc, margin, y, ETO_OPAQUE, &textRect, outputText, strlen(outputText), NULL);
 	y+=height+margin;
 
@@ -469,7 +469,7 @@ void PaintInfoWindow(HWND hwnd)
 
 
 	//Adjust the position of buttons
-	buttonheight=height+4+4;
+	buttonheight=MAX(height+4+4, 23);
 	buttonwidth=100;
 	xbuttonpos=clientRect.right-margin-buttonwidth;
 

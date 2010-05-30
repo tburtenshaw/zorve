@@ -495,8 +495,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	while (GetMessage(&msg,NULL,0,0)) {
 		if (!TranslateMDISysAccel(hwndMDIClient, &msg))
 			if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg)) {
+				if ( !IsDialogMessage(hwndInfo, &msg) )	{	//let windows handle tabbing between items in info
 				TranslateMessage(&msg);  // Translates virtual key codes
 				DispatchMessage(&msg);   // Dispatches message to window
+
+				}
 			}
 	}
 	return msg.wParam;
