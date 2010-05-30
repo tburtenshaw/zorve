@@ -238,8 +238,10 @@ LRESULT CALLBACK ListChildFileProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lpara
 		case WM_VSCROLL:
 			ListWindowHandleVScroll(hwnd, wparam, lparam);
 			break;
+		case WM_CONTEXTMENU:
+			ListWindowHandleContextMenu(hwnd, wparam, lparam);
+			break;
 		case WM_LBUTTONDOWN:
-		//case WM_LBUTTONDBLCLK:
 			point.x=GET_X_LPARAM(lparam);
 			point.y=GET_Y_LPARAM(lparam);
 			lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);
@@ -879,4 +881,74 @@ void DeleteDirectoryList(DIRECTORY_INFO *lpDirectoryInfo)
 	lpDirectoryInfo->numberOfFiles=0;
 
 	return;
+}
+
+int ListWindowHandleContextMenu(HWND hwnd, WPARAM wparam, LPARAM lparam)
+{
+	HMENU hMenu;
+	MENUITEMINFO menuItemInfo;
+	int index;
+	int x,y;
+
+
+	x=GET_X_LPARAM(lparam);
+	y=GET_Y_LPARAM(lparam);
+
+	hMenu = CreatePopupMenu();
+
+	memset(&menuItemInfo, 0, sizeof(MENUITEMINFO));
+
+	menuItemInfo.cbSize=sizeof(MENUITEMINFO);
+	menuItemInfo.fMask = MIIM_STRING|MIIM_STATE|MIIM_ID;
+	menuItemInfo.fType = MFT_STRING;
+
+	index=0;
+
+	//Open
+	menuItemInfo.dwTypeData="&Open associated files";
+	menuItemInfo.cch = 22;
+	menuItemInfo.wID = IDM_LISTVIEWHEADERDEFAULT;
+	menuItemInfo.fState = MFS_DEFAULT;
+	InsertMenuItem(hMenu, index, TRUE, &menuItemInfo);
+	index++;
+
+	//Separator
+	menuItemInfo.fMask = MIIM_STATE;
+	menuItemInfo.cch = 0;
+	menuItemInfo.fType = MFT_SEPARATOR;
+	menuItemInfo.fState = 0;
+	InsertMenuItem(hMenu, index, TRUE, &menuItemInfo);
+	index++;
+
+	//Edit stuff
+	menuItemInfo.fMask = MIIM_STRING|MIIM_STATE|MIIM_ID;
+	menuItemInfo.fType = MFT_STRING;
+
+	menuItemInfo.dwTypeData="&Cut";
+	menuItemInfo.cch = 4;
+	menuItemInfo.wID = IDM_LISTVIEWHEADERDEFAULT;
+	menuItemInfo.fState = 0;
+	InsertMenuItem(hMenu, index, TRUE, &menuItemInfo);
+	index++;
+
+	menuItemInfo.dwTypeData="&Copy";
+	menuItemInfo.cch = 5;
+	menuItemInfo.wID = IDM_LISTVIEWHEADERDEFAULT;
+	menuItemInfo.fState = 0;
+	InsertMenuItem(hMenu, index, TRUE, &menuItemInfo);
+	index++;
+
+	//File stuff
+	menuItemInfo.dwTypeData="&Delete";
+	menuItemInfo.cch = 7;
+	menuItemInfo.wID = IDM_LISTVIEWHEADERDEFAULT;
+	menuItemInfo.fState = 0;
+	InsertMenuItem(hMenu, index, TRUE, &menuItemInfo);
+	index++;
+
+
+	TrackPopupMenuEx(hMenu, TPM_LEFTALIGN| TPM_TOPALIGN, x, y, hwnd, NULL);
+	DestroyMenu(hMenu);
+
+	return 0;
 }

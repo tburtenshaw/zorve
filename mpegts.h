@@ -52,7 +52,7 @@ struct sTsPacket	{
 
 struct sMpegFileInfo	{
 	HANDLE	hMpegFile;
-	unsigned long filesize;
+	ULONGLONG filesize;
 	char filename[MAX_PATH];
 
 	ULONGLONG firstSyncByte;		//actually should be signed longlong, for compatibility with setfilepointer
@@ -90,6 +90,11 @@ struct sMpegWindowInfo	{
 	HWND	hwndPrevButton;
 	HWND	hwndPositionEditbox;
 	HWND	hwndSeekButton;
+	HWND	hwndLockPID;		//checkboxes. For PID
+	HWND	hwndPIDCombobox;
+	HWND	hwndLockPayload;
+	HWND	hwndLockNavPointer;
+	HWND	hwndLockIframe;
 
 	char recordingname[120];
 };

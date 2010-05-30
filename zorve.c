@@ -493,14 +493,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 
 	while (GetMessage(&msg,NULL,0,0)) {
-		if (!TranslateMDISysAccel(hwndMDIClient, &msg))
+		if (!TranslateMDISysAccel(hwndMDIClient, &msg))	{
 			if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg)) {
-				if ( !IsDialogMessage(hwndInfo, &msg) )	{	//let windows handle tabbing between items in info
-				TranslateMessage(&msg);  // Translates virtual key codes
-				DispatchMessage(&msg);   // Dispatches message to window
 
+				if (!IsDialogMessage(hwndInfo, &msg))	{ //let windows handle tabbing between items in info
+					TranslateMessage(&msg);  // Translates virtual key codes
+					DispatchMessage(&msg);   // Dispatches message to window
 				}
+
 			}
+		}
 	}
 	return msg.wParam;
 }
@@ -728,7 +730,7 @@ int IdentifyFileType(char *filename)
 	return ZFT_UNKNOWN;	//if returns 0, then we don't know
 }
 
-void UnsignedLongLongToString(ULONGLONG ull, char *s)
+int UnsignedLongLongToString(ULONGLONG ull, char *s)
 {
 	int i;
 
@@ -760,7 +762,7 @@ void UnsignedLongLongToString(ULONGLONG ull, char *s)
 
 	s[place+1]=0;
 
-	return;
+	return place;	//returns the number of digits
 }
 
 int FilenameMpegOrNavToInfo(char *buffer, char *filename)
