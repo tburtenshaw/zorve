@@ -238,7 +238,7 @@ LRESULT CALLBACK ListChildFileProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lpara
 		case WM_VSCROLL:
 			ListWindowHandleVScroll(hwnd, wparam, lparam);
 			break;
-		case WM_CONTEXTMENU:
+		case WM_CONTEXTMENU:	//dunno why VK_APPS isn't activating it
 			ListWindowHandleContextMenu(hwnd, wparam, lparam);
 			break;
 		case WM_LBUTTONDOWN:
@@ -651,6 +651,9 @@ int ListWindowHandleKeydown(HWND hwnd, WPARAM wparam, LPARAM lparam)
 			break;
 		case VK_END:
 			lpListWindowInfo->selectedLine=lpListWindowInfo->directoryInfo.numberOfFiles-1;
+
+		default:
+			return DefMDIChildProc(hwnd, WM_KEYDOWN, wparam, lparam);
 		}
 
 
@@ -885,16 +888,50 @@ void DeleteDirectoryList(DIRECTORY_INFO *lpDirectoryInfo)
 
 int ListWindowHandleContextMenu(HWND hwnd, WPARAM wparam, LPARAM lparam)
 {
+	LISTWINDOW_INFO *lpListWindowInfo;
+	DIRECTORY_INFO *lpDirectoryInfo;
+	DIRECTORY_LIST *llist;
+
+	POINT point;
+
 	HMENU hMenu;
+	HMENU hOpenWithMenu;
 	MENUITEMINFO menuItemInfo;
 	int index;
-	int x,y;
 
 
-	x=GET_X_LPARAM(lparam);
-	y=GET_Y_LPARAM(lparam);
 
+	point.x=GET_X_LPARAM(lparam);
+	point.y=GET_Y_LPARAM(lparam);
+
+	//wm_contextmenu gives screen coords, we convert these so they're relative to the window
+	ScreenToClient(hwnd,&point);
+
+	lpListWindowInfo=(LISTWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);
+	lpDirectoryInfo=&lpListWindowInfo->directoryInfo;
+
+	llist=lpDirectoryInfo->first;
+	while (llist)	{
+		if (PtInRect(&llist->boundingRect, point))	{
+			//SendMessage(GetParent(GetParent(GetParent(hwnd))), ZM_OPENFILEINFO, (WPARAM)llist->filename, (LPARAM)0);
+			lpDirectoryInfo->parentListWindowInfo->selectedLine=llist->index;
+			InvalidateRect(hwnd, &lpDirectoryInfo->parentListWindowInfo->oldBoundingRect, FALSE);
+			InvalidateRect(hwnd, &llist->boundingRect, FALSE);
+		}
+		llist=llist->next;
+	}
+
+
+	//We change back point, so we draw the menu at the right place.
+	ClientToScreen(hwnd,&point);
+
+
+	//After we've selected the item, then we make the menu
+
+
+	hOpenWithMenu = CreatePopupMenu();
 	hMenu = CreatePopupMenu();
+
 
 	memset(&menuItemInfo, 0, sizeof(MENUITEMINFO));
 
@@ -904,13 +941,35 @@ int ListWindowHandleContextMenu(HWND hwnd, WPARAM wparam, LPARAM lparam)
 
 	index=0;
 
+	menuItemInfo.dwTypeData="&VideoRedo";
+	menuItemInfo.cch = 10;
+	menuItemInfo.wID = 0;
+	menuItemInfo.fState = 0;
+	InsertMenuItem(hOpenWithMenu, index, TRUE, &menuItemInfo);
+	index++;
+
+
+	//Now the main context menu
+	index = 0;
+
 	//Open
-	menuItemInfo.dwTypeData="&Open associated files";
-	menuItemInfo.cch = 22;
-	menuItemInfo.wID = IDM_LISTVIEWHEADERDEFAULT;
+	menuItemInfo.dwTypeData="&Open MPEG-TS and Nav";
+	menuItemInfo.cch = 19;
+	menuItemInfo.wID = 0;
 	menuItemInfo.fState = MFS_DEFAULT;
 	InsertMenuItem(hMenu, index, TRUE, &menuItemInfo);
 	index++;
+
+	//Open MPEG With
+	menuItemInfo.fMask = MIIM_STRING|MIIM_STATE|MIIM_ID|MIIM_SUBMENU;
+	menuItemInfo.dwTypeData="Open MPEG With";
+	menuItemInfo.cch = 19;
+	menuItemInfo.wID = 0;
+	menuItemInfo.fState = 0;
+	menuItemInfo.hSubMenu = hOpenWithMenu;
+	InsertMenuItem(hMenu, index, TRUE, &menuItemInfo);
+	index++;
+
 
 	//Separator
 	menuItemInfo.fMask = MIIM_STATE;
@@ -924,17 +983,17 @@ int ListWindowHandleContextMenu(HWND hwnd, WPARAM wparam, LPARAM lparam)
 	menuItemInfo.fMask = MIIM_STRING|MIIM_STATE|MIIM_ID;
 	menuItemInfo.fType = MFT_STRING;
 
-	menuItemInfo.dwTypeData="&Cut";
-	menuItemInfo.cch = 4;
+	menuItemInfo.dwTypeData="&Move";
+	menuItemInfo.cch = 5;
 	menuItemInfo.wID = IDM_LISTVIEWHEADERDEFAULT;
-	menuItemInfo.fState = 0;
+	menuItemInfo.fState = MFS_DISABLED;
 	InsertMenuItem(hMenu, index, TRUE, &menuItemInfo);
 	index++;
 
 	menuItemInfo.dwTypeData="&Copy";
 	menuItemInfo.cch = 5;
 	menuItemInfo.wID = IDM_LISTVIEWHEADERDEFAULT;
-	menuItemInfo.fState = 0;
+	menuItemInfo.fState = MFS_DISABLED;
 	InsertMenuItem(hMenu, index, TRUE, &menuItemInfo);
 	index++;
 
@@ -942,13 +1001,30 @@ int ListWindowHandleContextMenu(HWND hwnd, WPARAM wparam, LPARAM lparam)
 	menuItemInfo.dwTypeData="&Delete";
 	menuItemInfo.cch = 7;
 	menuItemInfo.wID = IDM_LISTVIEWHEADERDEFAULT;
+	menuItemInfo.fState = MFS_DISABLED;
+	InsertMenuItem(hMenu, index, TRUE, &menuItemInfo);
+	index++;
+
+	menuItemInfo.dwTypeData="&Rename";
+	menuItemInfo.cch = 7;
+	menuItemInfo.wID = IDM_LISTVIEWHEADERDEFAULT;
+	menuItemInfo.fState = MFS_DISABLED;
+	InsertMenuItem(hMenu, index, TRUE, &menuItemInfo);
+	index++;
+
+	//Just pops up File Information (equiv of properties)
+	menuItemInfo.dwTypeData="File &Information";
+	menuItemInfo.cch = 17;
+	menuItemInfo.wID = IDM_LISTVIEWHEADERDEFAULT;
 	menuItemInfo.fState = 0;
 	InsertMenuItem(hMenu, index, TRUE, &menuItemInfo);
 	index++;
 
 
-	TrackPopupMenuEx(hMenu, TPM_LEFTALIGN| TPM_TOPALIGN, x, y, hwnd, NULL);
+
+	TrackPopupMenuEx(hMenu, TPM_LEFTALIGN| TPM_TOPALIGN, point.x, point.y, hwnd, NULL);
 	DestroyMenu(hMenu);
+	DestroyMenu(hOpenWithMenu);
 
 	return 0;
 }

@@ -18,7 +18,7 @@ int NavWindowRegisterWndClass(HINSTANCE hInst)
 	wc.hInstance     = hInst;                      // Owner of this class
 	wc.hIcon         = LoadIcon(hInst, MAKEINTRESOURCE(IDI_NAV));
 	wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
-	wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1); // Default color
+	wc.hbrBackground = NULL;
 	wc.lpszMenuName  = NULL;
 	wc.lpszClassName = "NavWndClass";
 
@@ -139,7 +139,7 @@ HWND NavWindowCreate(HWND hwndMDIClient, HINSTANCE hInst)
 	mcs.y       = 350;
 	mcs.cx      = 490;    // width
 	mcs.cy      = 320;    // height
-	mcs.style   = WS_CLIPCHILDREN|WS_CHILD;                // window style
+	mcs.style   = 0;                // window style
 	mcs.lParam  = 0;                // lparam
 
 	hwndChild = (HWND) SendMessage(hwndMDIClient, WM_MDICREATE, 0, (LPARAM)(LPMDICREATESTRUCT) &mcs);
