@@ -52,12 +52,12 @@ struct sTsPacket	{
 
 struct sMpegFileInfo	{
 	HANDLE	hMpegFile;
-	ULONGLONG filesize;
+	LONGLONG filesize;
 	char filename[MAX_PATH];
 
-	ULONGLONG firstSyncByte;		//actually should be signed longlong, for compatibility with setfilepointer
-	ULONGLONG offset;
-	ULONGLONG displayOffset;
+	LONGLONG firstSyncByte;
+	LONGLONG offset;
+	LONGLONG displayOffset;
 
 	HANDLE hBackgroundThread;
 	HANDLE hFileAccessMutex;
@@ -118,7 +118,7 @@ int MpegHexView(HWND hwnd);
 BOOL MpegChangePacket(MPEGWINDOW_INFO * mpegWindowInfo, LPARAM buttonPressed); //returns ?redraw
 
 HANDLE MpegWindowLoadFile(HWND hwnd, char * mpegFile);
-int MpegTSFindSyncByte(HANDLE hFile, ULONGLONG * syncbyteOffset);
+int MpegTSFindSyncByte(HANDLE hFile, LONGLONG * syncbyteOffset);
 int MpegReadPacket(MPEGFILE_INFO *mpegFileInfo, TS_PACKET *packet);
 int MpegPrepareForClose(HWND hwnd);
 

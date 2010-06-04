@@ -233,8 +233,6 @@ void MainWndProc_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
 			if (result==ZFT_MPEGTS)	{
 				hwndMpeg= MpegWindowCreateOrShow(hwndMpeg, hwndMDIClient, hInstProgram);
 				MpegWindowLoadFile(hwndMpeg, openfilename);
-				//lpMpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(hwndMpeg, GWL_USERDATA);
-				//MpegReadPacket(&lpMpegWindowInfo->fileInfo, &lpMpegWindowInfo->displayedPacket); //we shouldnot be doing this here
 				return;
 			}
 			if (result==ZFT_NAV)	{
@@ -674,7 +672,7 @@ int IdentifyFileType(char *filename)
 	long magic=0;
 	unsigned int navEight_int=0;
 	long navZero_long=0;
-	ULONGLONG mpegSyncByte=0;
+	LONGLONG mpegSyncByte=0;
 
 	hFile=CreateFile(filename, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL|FILE_FLAG_RANDOM_ACCESS, NULL);
 
@@ -762,7 +760,7 @@ int UnsignedLongLongToString(ULONGLONG ull, char *s)
 
 	s[place+1]=0;
 
-	return place;	//returns the number of digits
+	return place+1;	//returns the number of digits
 }
 
 int FilenameMpegOrNavToInfo(char *buffer, char *filename)

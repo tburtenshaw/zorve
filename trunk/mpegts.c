@@ -191,7 +191,7 @@ HANDLE MpegWindowLoadFile(HWND hwnd, char * mpegFile)
 DWORD WINAPI MpegReadFileStats(MPEGFILE_INFO *mpegFileInfo)
 {
 	TS_PACKET packet;
-	ULONGLONG offset;
+	LONGLONG offset;
 	int pTry;
 	int stay;
 
@@ -232,8 +232,9 @@ DWORD WINAPI MpegReadFileStats(MPEGFILE_INFO *mpegFileInfo)
 	return 0;
 }
 
-int MpegTSFindSyncByte(HANDLE hFile, ULONGLONG * syncbyteOffset)
+int MpegTSFindSyncByte(HANDLE hFile, LONGLONG * syncbyteOffset)
 {
+	LARGE_INTEGER largeint_filesize;
 	BYTE testbyte;
 	long n;
 
@@ -241,8 +242,6 @@ int MpegTSFindSyncByte(HANDLE hFile, ULONGLONG * syncbyteOffset)
 	int occurence;
 	LARGE_INTEGER offset;
 	int justskipped;	//if we have just found one and skipped some bytes, we'll go back
-
-	LARGE_INTEGER largeint_filesize;
 	long highZero=0;	//used as a high order rather than null
 
 	GetFileSizeEx(hFile, &largeint_filesize);
@@ -251,7 +250,10 @@ int MpegTSFindSyncByte(HANDLE hFile, ULONGLONG * syncbyteOffset)
 	occurence = 0;
 	justskipped=0;
 
-	SetFilePointer(hFile, offset.LowPart, &offset.HighPart, FILE_BEGIN);
+	readResult = SetFilePointer(hFile, offset.LowPart, &offset.HighPart, FILE_BEGIN);
+	if (readResult==INVALID_SET_FILE_POINTER)
+		return 0;
+
 
 	readResult = ReadFile(hFile, &testbyte, 1, &n, NULL);
 	while ((readResult) && (offset.QuadPart<largeint_filesize.QuadPart))	{
@@ -272,8 +274,9 @@ int MpegTSFindSyncByte(HANDLE hFile, ULONGLONG * syncbyteOffset)
 		}
 		else	{
 			if (justskipped)	{
-				offset.QuadPart-=188;
-				readResult = SetFilePointer(hFile, -188, &highZero, FILE_CURRENT);
+				offset.QuadPart-=187;
+				readResult = SetFilePointer(hFile, offset.LowPart, &offset.HighPart, FILE_BEGIN);
+				offset.QuadPart--;	//need to do this, because we end up adding later.
 				if (readResult==INVALID_SET_FILE_POINTER)
 					return 0;
 				justskipped=0;
@@ -515,8 +518,22 @@ LRESULT CALLBACK MpegPacketInfoProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lPar
 					   					WS_CHILD|WS_VISIBLE|WS_TABSTOP|WS_BORDER|BS_PUSHBUTTON,
 									    120,60,60,23, hwnd, NULL, hInst, NULL);
 
+			mpegWindowInfo->hwndLockPID	= CreateWindow("BUTTON", "PID",
+					   					WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_CHECKBOX|WS_DISABLED,
+									    20,120,60,23, hwnd, NULL, hInst, NULL);
 
+			mpegWindowInfo->hwndPIDCombobox = CreateWindow("COMBOBOX", "PID",
+					   					WS_CHILD|WS_VISIBLE|WS_TABSTOP|CBS_DROPDOWN|WS_DISABLED,
+									    90,120,60,23, hwnd, NULL, hInst, NULL);
 
+			mpegWindowInfo->hwndLockPayload = CreateWindow("BUTTON", "Payload",
+					   					WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_CHECKBOX|WS_DISABLED,
+									    160,120,60,23, hwnd, NULL, hInst, NULL);
+
+			mpegWindowInfo->hwndLockNavPointer = CreateWindow("BUTTON", "Nav files",
+					   					WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_CHECKBOX|WS_DISABLED,
+									    160,150,60,23, hwnd, NULL, hInst, NULL);
+//hwndLockIframe
 
 			hSmallFont = CreateFont(
 				MulDiv(10, GetDeviceCaps(GetDC(hwnd), LOGPIXELSY), 72),
@@ -531,6 +548,10 @@ LRESULT CALLBACK MpegPacketInfoProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lPar
 			SendMessage(mpegWindowInfo->hwndPrevButton, WM_SETFONT, (WPARAM)hSmallFont, 0);
 			SendMessage(mpegWindowInfo->hwndPositionEditbox, WM_SETFONT, (WPARAM)hSmallFont, 0);
 			SendMessage(mpegWindowInfo->hwndSeekButton, WM_SETFONT, (WPARAM)hSmallFont, 0);
+			SendMessage(mpegWindowInfo->hwndLockPID, WM_SETFONT, (WPARAM)hSmallFont, 0);
+			SendMessage(mpegWindowInfo->hwndPIDCombobox, WM_SETFONT, (WPARAM)hSmallFont, 0);
+			SendMessage(mpegWindowInfo->hwndLockPayload, WM_SETFONT, (WPARAM)hSmallFont, 0);
+			SendMessage(mpegWindowInfo->hwndLockNavPointer, WM_SETFONT, (WPARAM)hSmallFont, 0);
 
 			break;
 
@@ -688,7 +709,7 @@ int MpegFileInfoPaint(HWND hwnd)
 	outputRect.bottom=y+heightMidFont;
 	sprintf(buffer, "Size: "); //len=6
 	len = UnsignedLongLongToString(mpegWindowInfo->fileInfo.filesize, buffer+6);
-	sprintf(buffer+6+len+1, " bytes");
+	sprintf(buffer+6+len, " bytes");
 	ExtTextOut(hdc, ZORVEWINDOWMARGIN,y,ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
 	y+=heightMidFont;
 
@@ -816,6 +837,8 @@ int MpegPacketInfoPaint(HWND hwnd)
 	int heightSmallFont=12;
 	int heightMidFont=16;
 
+	int len;
+
 	mpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);	//get the point to window info
 
 	GetClientRect(hwnd, &clientRect);
@@ -858,7 +881,10 @@ int MpegPacketInfoPaint(HWND hwnd)
 
 	//Packet number
 	sprintf(buffer, "Packet: %u (", (long)(mpegWindowInfo->fileInfo.displayOffset/188));
-	UnsignedLongLongToString((mpegWindowInfo->fileInfo.displayOffset)-188, buffer+strlen(buffer));
+	len = strlen(buffer);
+	len+=UnsignedLongLongToString((mpegWindowInfo->fileInfo.displayOffset)-188, buffer+strlen(buffer));
+	sprintf(buffer+len, ")");
+
 	ExtTextOut(hdc, ZORVEWINDOWMARGIN, y, ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
 	y+=heightMidFont;
 
@@ -969,6 +995,7 @@ BOOL MpegChangePacket(MPEGWINDOW_INFO *mpegWindowInfo, LPARAM lParam)
 		readPacket=1;
 	}
 
+	//Seek to a particular offset
 	if (lParam == (LPARAM)mpegWindowInfo->hwndSeekButton)	{
 
 		SendMessage(mpegWindowInfo->hwndPositionEditbox, WM_GETTEXT, 20, (LPARAM)&positionString);
@@ -976,14 +1003,33 @@ BOOL MpegChangePacket(MPEGWINDOW_INFO *mpegWindowInfo, LPARAM lParam)
 		//Give the opportunity for 0x to be entered as first two digits and regard as hexadecimal
 		if ((positionString[0] == '0') && ((positionString[1] == 'x') || (positionString[1] == 'X')))
 			mpegWindowInfo->fileInfo.displayOffset = strtoll(positionString+2, NULL ,16);
+		else if ((positionString[0] == 'P') || (positionString[0] == 'p'))	//let P as a prefix seek to packet number
+			mpegWindowInfo->fileInfo.displayOffset = strtoll(positionString+1, NULL ,10)*188-188;
 		else	//otherwise default to decimal
 			mpegWindowInfo->fileInfo.displayOffset = strtoll(positionString, NULL ,10);
+
+		readPacket = 1;
+
+		//Since we want to find the packet with the offset in it, we move back 187
+		if (mpegWindowInfo->fileInfo.displayOffset>187)
+			mpegWindowInfo->fileInfo.displayOffset-=187;
+		else
+			mpegWindowInfo->fileInfo.displayOffset=0;
+
+		//Sanity checking
+		if (mpegWindowInfo->fileInfo.displayOffset<0)	//too low
+			mpegWindowInfo->fileInfo.displayOffset=0;
+
+		if (mpegWindowInfo->fileInfo.displayOffset>mpegWindowInfo->fileInfo.filesize-188)	//too high
+			mpegWindowInfo->fileInfo.displayOffset=mpegWindowInfo->fileInfo.filesize-188;
+			//note: as sync needs to find 5 consecutive syncbytes, we should ensure the starting offset
+		    //is not too close to the EOF. If it is, an amount should be subtracted, sync found, then re-add
+			//the amount.
+
 
 		MpegTSFindSyncByte(mpegWindowInfo->fileInfo.hMpegFile, &mpegWindowInfo->fileInfo.displayOffset);
 
 		UnsignedLongLongToString(mpegWindowInfo->fileInfo.displayOffset, positionString);
-
-		readPacket = 1;
 	}
 
 
