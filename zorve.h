@@ -64,7 +64,7 @@ void ZorveSetHwndList(HWND hwnd);
 #define ZM_OPENFILEINFO		(WM_USER+4)
 #define ZM_LIST_SELECTFROMFILEANDREFRESH	(WM_USER+10)	//Select the file as specified
 #define ZM_LIST_SELECTFROMFILE	(WM_USER+11)
-#define ZM_MPEG_SKIPTOOFFSET (WM_USER+20)	//Skip to a specified point
+#define ZM_MPEG_SKIPTOOFFSET (WM_USER+20)	//Skip to a specified point wParam is low part, lParam is high part
 #define ZM_REQUEST_RECORDINGNAME (WM_USER+30)	//Send this using lParam as receive window, wParam as filename
 #define ZM_REPLY_RECORDINGNAME (WM_USER+31)	//Send this back to window with wParam as text
 

@@ -80,6 +80,7 @@ struct sNavWindowInfo	{
 	long firstDisplayedRecord;
 	long indexRecordBuffer;
 	int numDisplayedLines;
+	int heightLine;
 
 	NAV_RECORD displayRecord[1024];	//I want to load 1024, starting record nearest 512
 

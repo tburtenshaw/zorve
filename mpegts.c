@@ -120,6 +120,17 @@ LRESULT CALLBACK ChildWndMpegProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 			mpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);	//get the point to window info
 			sprintf(mpegWindowInfo->recordingname, "%s", (char *)wparam);
 			break;
+		case ZM_MPEG_SKIPTOOFFSET: 		//I'll handle this sloppily for now
+			char buffer[24];
+			LARGE_INTEGER	liOffset;
+			mpegWindowInfo=(MPEGWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);	//get the point to window info
+			liOffset.LowPart=wparam;
+			liOffset.HighPart=lparam;
+			UnsignedLongLongToString(liOffset.QuadPart, buffer);
+			SendMessage(mpegWindowInfo->hwndPositionEditbox, WM_SETTEXT, 0, (LPARAM)buffer);	//fill the editbox with offset
+			SendMessage(mpegWindowInfo->hwndBlockInfo, WM_COMMAND, 0, (LPARAM)mpegWindowInfo->hwndSeekButton); //simulate seek press
+			break;
+
 		case WM_ERASEBKGND:
 			return 1;
 			break;

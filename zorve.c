@@ -376,6 +376,11 @@ LRESULT CALLBACK MainWndProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam)
 			}
 
 			break;
+		case ZM_MPEG_SKIPTOOFFSET: 		//Seek to offset - forward to mpeg window
+			if (IsWindow(hwndMpeg))
+				SendMessage(hwndMpeg, ZM_MPEG_SKIPTOOFFSET, wParam, lParam);
+			break;
+
 		case WM_DESTROY:
 			PostQuitMessage(0);
 			break;
