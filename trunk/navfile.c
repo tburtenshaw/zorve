@@ -155,6 +155,7 @@ HWND NavWindowCreate(HWND hwndMDIClient, HINSTANCE hInst)
 LRESULT CALLBACK NavRecordListViewFileProc(HWND hwnd,UINT msg, WPARAM wparam,LPARAM lparam)
 {
 	NAVWINDOW_INFO *navWindowInfo;
+	int i,y;
 
 	switch(msg) {
 		case WM_PAINT:
@@ -178,6 +179,19 @@ LRESULT CALLBACK NavRecordListViewFileProc(HWND hwnd,UINT msg, WPARAM wparam,LPA
 				InvalidateRect(hwnd, NULL, FALSE);
 			}
 		break;
+		case WM_LBUTTONDBLCLK:
+			navWindowInfo=(NAVWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);	//get the point to window info
+
+			//Really need to sort this nested GetParent out, will add a var to each windowinfo with parent+mdiparent
+			y=GET_Y_LPARAM(lparam);
+			i=y/navWindowInfo->heightLine;
+
+			SendMessage(GetParent(GetParent(GetParent(hwnd))),
+				ZM_MPEG_SKIPTOOFFSET,
+				navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].offsetlo,
+				navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].offsethi);
+
+			break;
 
 		default:
 			return DefMDIChildProc(hwnd, msg, wparam, lparam);
@@ -420,6 +434,7 @@ int NavRecordListViewPaint(HWND hwnd)
 	y=0;
 
 	navWindowInfo->numDisplayedLines=(clientRect.bottom-clientRect.top)/(heightFont+1);
+	navWindowInfo->heightLine = (heightFont+1);
 
 	numberOfLinesToDraw=MIN(navWindowInfo->numDisplayedLines+1, navWindowInfo->fileInfo.numRecords - navWindowInfo->firstDisplayedRecord);
 
