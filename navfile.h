@@ -82,6 +82,8 @@ struct sNavWindowInfo	{
 	int numDisplayedLines;
 	int heightLine;
 
+	long selectedRecord;
+
 	NAV_RECORD displayRecord[1024];	//I want to load 1024, starting record nearest 512
 
 	int	mousePushed;
