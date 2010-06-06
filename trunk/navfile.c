@@ -186,6 +186,9 @@ LRESULT CALLBACK NavRecordListViewFileProc(HWND hwnd,UINT msg, WPARAM wparam,LPA
 			y=GET_Y_LPARAM(lparam);
 			i=y/navWindowInfo->heightLine;
 
+			navWindowInfo->selectedRecord = navWindowInfo->firstDisplayedRecord+i;
+			InvalidateRect(hwnd, NULL, FALSE);
+
 			SendMessage(GetParent(GetParent(GetParent(hwnd))),
 				ZM_MPEG_SKIPTOOFFSET,
 				navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].offsetlo,
@@ -412,6 +415,8 @@ int NavRecordListViewPaint(HWND hwnd)
 	int i;	//row counter
 	int c;	//column counter
 
+	long displayrecordNumber;
+
 	int columnStart=0;
 
 	navWindowInfo=(NAVWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);	//get the point to window info
@@ -441,7 +446,17 @@ int NavRecordListViewPaint(HWND hwnd)
 	SetTextColor(hdc, RGB_ZINNY_DARKBLUE);
 	for (i=0;i<numberOfLinesToDraw;i++)	{
 
-		SetBkColor(hdc, RGB_ZINNY_MIDPURPLE);
+		displayrecordNumber = navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i;
+
+		if (navWindowInfo->firstDisplayedRecord+i == navWindowInfo->selectedRecord)	{
+			SetBkColor(hdc, RGB_ZINNY_BRIGHTBLUE);	//if selected
+			SetTextColor(hdc, RGB_ZINNY_WHITE);
+		}
+		else	{
+			SetBkColor(hdc, RGB_ZINNY_MIDPURPLE);
+			SetTextColor(hdc, RGB_ZINNY_DARKBLUE);
+		}
+
 		outputRect.top=y;
 		outputRect.bottom=y+heightFont;
 		columnStart=0;
@@ -456,67 +471,66 @@ int NavRecordListViewPaint(HWND hwnd)
 						sprintf(buffer, "%i (0x%x)",navWindowInfo->firstDisplayedRecord+i, (navWindowInfo->firstDisplayedRecord+i)*sizeof(NAV_RECORD));
 						break;
 					case 1:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s0
-											+ (navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].twobytes2 & 0xFF)*256*256
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[displayrecordNumber].s0
+											+ (navWindowInfo->displayRecord[displayrecordNumber].twobytes2 & 0xFF)*256*256
 						);
 						break;
 					case 2:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].twobytes2 >> 8);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[displayrecordNumber].twobytes2 >> 8);
 						break;
 					case 3:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].twobytes4 & 0xFF);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[displayrecordNumber].twobytes4 & 0xFF);
 						break;
 					case 4:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].twobytes4 >> 8);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[displayrecordNumber].twobytes4 >> 8);
 						break;
 					case 5:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s6);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[displayrecordNumber].s6);
 						break;
 					case 6:
-						UnsignedLongLongToString((ULONGLONG)navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].offsetlo +
-					   							   (ULONGLONG)navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].offsethi * (ULONGLONG)0x100000000,
+						UnsignedLongLongToString((ULONGLONG)navWindowInfo->displayRecord[displayrecordNumber].offsetlo +
+					   							   (ULONGLONG)navWindowInfo->displayRecord[displayrecordNumber].offsethi * (ULONGLONG)0x100000000,
 												  	 buffer);
-						//sprintf(buffer, "%u %u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].offsetlo,navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].offsethi);
 						break;
 					case 7:
 						//The time stamp is the 300x the number of 1/27000000ths, Olevia stores this as a 32 bit value (half the original)
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].timer);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[displayrecordNumber].timer);
 						break;
 					case 8:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l14);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[displayrecordNumber].l14);
 						break;
 					case 9:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].milliseconds);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[displayrecordNumber].milliseconds);
 						break;
 					case 10:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l1Czero);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[displayrecordNumber].l1Czero);
 						break;
 					case 11:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l20);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[displayrecordNumber].l20);
 						break;
 					case 12:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s24);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[displayrecordNumber].s24);
 						break;
 					case 13:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].s26zero);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[displayrecordNumber].s26zero);
 						break;
 					case 14:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l28zero);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[displayrecordNumber].l28zero);
 						break;
 					case 15:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l2Czero);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[displayrecordNumber].l2Czero);
 						break;
 					case 16:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l30zero);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[displayrecordNumber].l30zero);
 						break;
 					case 17:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l34zero);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[displayrecordNumber].l34zero);
 						break;
 					case 18:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l38zero);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[displayrecordNumber].l38zero);
 						break;
 					case 19:
-						sprintf(buffer, "%u", navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].l3Czero);
+						sprintf(buffer, "%u", navWindowInfo->displayRecord[displayrecordNumber].l3Czero);
 						break;
 
 					default:

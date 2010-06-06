@@ -173,6 +173,7 @@ HANDLE MpegWindowLoadFile(HWND hwnd, char * mpegFile)
 	lstrcpy(mpegWindowInfo->fileInfo.filename, mpegFile);
 
 	SendMessage(mpegWindowInfo->zorveHwnd, ZM_REQUEST_RECORDINGNAME, (WPARAM)mpegWindowInfo->fileInfo.filename, (LPARAM)hwnd);
+	InvalidateRect(mpegWindowInfo->hwndFileInfo, NULL, FALSE);
 
 	//Load as 'sequential' for caching.
 	mpegWindowInfo->fileInfo.hMpegFile = CreateFile(mpegFile, GENERIC_READ, FILE_SHARE_READ, NULL,
@@ -520,7 +521,7 @@ LRESULT CALLBACK MpegPacketInfoProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lPar
 					   					WS_CHILD|WS_VISIBLE|WS_TABSTOP|WS_BORDER|BS_PUSHBUTTON,
 									    20,90,60,23, hwnd, NULL, hInst, NULL);
 
-			mpegWindowInfo->hwndPositionEditbox =	CreateWindow("EDIT", "Position",
+			mpegWindowInfo->hwndPositionEditbox =	CreateWindow("EDIT", "0",
 				    					WS_CHILD|WS_VISIBLE|ES_LEFT|WS_TABSTOP|WS_BORDER,
 									    30,60,80,18, hwnd, NULL, hInst, NULL);
 			SendMessage(mpegWindowInfo->hwndPositionEditbox, EM_LIMITTEXT, 20, 0);	//shouldn't be any offset longer than 20 digits
@@ -538,7 +539,7 @@ LRESULT CALLBACK MpegPacketInfoProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lPar
 									    90,120,60,23, hwnd, NULL, hInst, NULL);
 
 			mpegWindowInfo->hwndLockPayload = CreateWindow("BUTTON", "Payload",
-					   					WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_CHECKBOX|WS_DISABLED,
+					   					WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_AUTOCHECKBOX,
 									    160,120,60,23, hwnd, NULL, hInst, NULL);
 
 			mpegWindowInfo->hwndLockNavPointer = CreateWindow("BUTTON", "Nav files",
@@ -993,6 +994,48 @@ BOOL MpegChangePacket(MPEGWINDOW_INFO *mpegWindowInfo, LPARAM lParam)
 	char positionString[24];
 
 
+
+	//If we're locking to something
+	if (SendMessage(mpegWindowInfo->hwndLockPayload, BM_GETSTATE, 0, 0) == BST_CHECKED)	{
+		//If searching forwards or backwards
+		if ((lParam == (LPARAM)mpegWindowInfo->hwndNextButton)||(lParam == (LPARAM)mpegWindowInfo->hwndPrevButton))	{
+			WaitForSingleObject(mpegWindowInfo->fileInfo.hFileAccessMutex,INFINITE);
+
+			tempOffset=mpegWindowInfo->fileInfo.offset;	//remember the offset
+
+			mpegWindowInfo->fileInfo.offset=mpegWindowInfo->fileInfo.displayOffset; //move to the display offset
+			liOffset.QuadPart = mpegWindowInfo->fileInfo.displayOffset;	//move this to something to separate parts for SFP
+			SetFilePointer(mpegWindowInfo->fileInfo.hMpegFile, liOffset.LowPart, &liOffset.HighPart, FILE_BEGIN);
+
+			mpegWindowInfo->displayedPacket.payloadstart= FALSE;
+			while ((mpegWindowInfo->displayedPacket.payloadstart==FALSE)
+			    && (mpegWindowInfo->fileInfo.offset < mpegWindowInfo->fileInfo.filesize-188)
+			    && (mpegWindowInfo->fileInfo.offset >= 0 ))	{
+				if (lParam == (LPARAM)mpegWindowInfo->hwndPrevButton)	{
+					mpegWindowInfo->fileInfo.offset-=188*2;	//move back over the block just read, to the begining of the previous
+					liOffset.QuadPart = mpegWindowInfo->fileInfo.offset;
+					SetFilePointer(mpegWindowInfo->fileInfo.hMpegFile, liOffset.LowPart, &liOffset.HighPart, FILE_BEGIN);
+
+				}
+				MpegReadPacket(&mpegWindowInfo->fileInfo, &mpegWindowInfo->displayedPacket);//read it
+			}
+
+
+
+			mpegWindowInfo->fileInfo.displayOffset=mpegWindowInfo->fileInfo.offset;
+			mpegWindowInfo->fileInfo.offset=tempOffset;	//set the offset back to what it was
+
+			liOffset.QuadPart = tempOffset;
+
+
+
+			ReleaseMutex(mpegWindowInfo->fileInfo.hFileAccessMutex);
+
+			return TRUE;
+		}
+	}
+
+	//Remember that displayOffset is primed to read the next
 	if (lParam == (LPARAM)mpegWindowInfo->hwndPrevButton)	{
 		if (mpegWindowInfo->fileInfo.displayOffset>=188*2)	{
 			mpegWindowInfo->fileInfo.displayOffset-=188*2;
@@ -1002,8 +1045,8 @@ BOOL MpegChangePacket(MPEGWINDOW_INFO *mpegWindowInfo, LPARAM lParam)
 			readPacket=0;
 	}
 	if (lParam == (LPARAM)mpegWindowInfo->hwndNextButton)	{
-
-		readPacket=1;
+		if (mpegWindowInfo->fileInfo.displayOffset < mpegWindowInfo->fileInfo.filesize-188)
+			readPacket=1;
 	}
 
 	//Seek to a particular offset
@@ -1018,8 +1061,6 @@ BOOL MpegChangePacket(MPEGWINDOW_INFO *mpegWindowInfo, LPARAM lParam)
 			mpegWindowInfo->fileInfo.displayOffset = strtoll(positionString+1, NULL ,10)*188-188;
 		else	//otherwise default to decimal
 			mpegWindowInfo->fileInfo.displayOffset = strtoll(positionString, NULL ,10);
-
-		readPacket = 1;
 
 		//Since we want to find the packet with the offset in it, we move back 187
 		if (mpegWindowInfo->fileInfo.displayOffset>187)
@@ -1037,10 +1078,28 @@ BOOL MpegChangePacket(MPEGWINDOW_INFO *mpegWindowInfo, LPARAM lParam)
 		    //is not too close to the EOF. If it is, an amount should be subtracted, sync found, then re-add
 			//the amount.
 
+		//Wait until the file isn't being read in the background
+		WaitForSingleObject(mpegWindowInfo->fileInfo.hFileAccessMutex,INFINITE);
 
+		tempOffset=mpegWindowInfo->fileInfo.offset;	//remember the offset
 		MpegTSFindSyncByte(mpegWindowInfo->fileInfo.hMpegFile, &mpegWindowInfo->fileInfo.displayOffset);
 
+
+		MpegReadPacket(&mpegWindowInfo->fileInfo, &mpegWindowInfo->displayedPacket);
+		mpegWindowInfo->fileInfo.displayOffset+=188;
+
+		if (!mpegWindowInfo->fileInfo.loadingInBackground)
+			mpegWindowInfo->fileInfo.offset=mpegWindowInfo->fileInfo.displayOffset;
+		else	{
+			liOffset.QuadPart = tempOffset;
+			SetFilePointer(mpegWindowInfo->fileInfo.hMpegFile, liOffset.LowPart, &liOffset.HighPart, FILE_BEGIN);
+		}
+
+
+		ReleaseMutex(mpegWindowInfo->fileInfo.hFileAccessMutex);
+
 		UnsignedLongLongToString(mpegWindowInfo->fileInfo.displayOffset, positionString);
+		return TRUE;
 	}
 
 
