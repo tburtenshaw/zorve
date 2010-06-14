@@ -52,6 +52,8 @@ struct sTsPacket	{
 
 struct sMpegFileInfo	{
 	HANDLE	hMpegFile;
+	MPEGWINDOW_INFO* windowInfo;
+
 	LONGLONG filesize;
 	char filename[MAX_PATH];
 
