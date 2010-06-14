@@ -97,6 +97,8 @@ LRESULT CALLBACK ChildWndMpegProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam
 			SetWindowLong(hwnd, GWL_USERDATA, (long)mpegWindowInfo); //set the custom long of the window to remember it
 			memset(mpegWindowInfo, 0, sizeof(MPEGWINDOW_INFO));	//make sure everything set to zero
 
+			mpegWindowInfo->fileInfo.windowInfo=mpegWindowInfo;
+
 			mpegWindowInfo->zorveHwnd = GetParent(GetParent(hwnd));
 
 			mpegWindowInfo->hwndFileInfo = CreateWindow("MpegFileInfoClass", "fileinfo",
@@ -167,9 +169,10 @@ HANDLE MpegWindowLoadFile(HWND hwnd, char * mpegFile)
 		//reset everything that should be reset (we can't memset windowinfo to zero, as we need to retain hwnds
 		memset(&mpegWindowInfo->fileInfo, 0, sizeof(MPEGFILE_INFO));
 		memset(&mpegWindowInfo->displayedPacket, 0, sizeof(TS_PACKET));
+		SendMessage(mpegWindowInfo->hwndPIDCombobox,CB_RESETCONTENT,0, 0);	//reset the combobox listing pids
 	}
 
-
+	mpegWindowInfo->fileInfo.windowInfo=mpegWindowInfo;
 	lstrcpy(mpegWindowInfo->fileInfo.filename, mpegFile);
 
 	SendMessage(mpegWindowInfo->zorveHwnd, ZM_REQUEST_RECORDINGNAME, (WPARAM)mpegWindowInfo->fileInfo.filename, (LPARAM)hwnd);
@@ -206,6 +209,7 @@ DWORD WINAPI MpegReadFileStats(MPEGFILE_INFO *mpegFileInfo)
 	LONGLONG offset;
 	int pTry;
 	int stay;
+	char buffer[16];
 
 	offset=0;
 	mpegFileInfo->loadingInBackground = TRUE;
@@ -228,6 +232,8 @@ DWORD WINAPI MpegReadFileStats(MPEGFILE_INFO *mpegFileInfo)
 			}
 			if ((stay==1) && (mpegFileInfo->seenPid[pTry]==0))	{
 				mpegFileInfo->seenPid[pTry]=packet.pid;
+				buffer[0]='0'; buffer[1]='x';
+				ComboBox_AddString(mpegFileInfo->windowInfo->hwndPIDCombobox, ltoa(packet.pid, buffer+2, 16)-2);
 				mpegFileInfo->countPid[pTry]=1;
 				stay=0;
 			}
@@ -531,12 +537,12 @@ LRESULT CALLBACK MpegPacketInfoProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lPar
 									    120,60,60,23, hwnd, NULL, hInst, NULL);
 
 			mpegWindowInfo->hwndLockPID	= CreateWindow("BUTTON", "PID",
-					   					WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_CHECKBOX|WS_DISABLED,
+					   					WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_AUTOCHECKBOX,
 									    20,120,60,23, hwnd, NULL, hInst, NULL);
 
 			mpegWindowInfo->hwndPIDCombobox = CreateWindow("COMBOBOX", "PID",
-					   					WS_CHILD|WS_VISIBLE|WS_TABSTOP|CBS_DROPDOWN|WS_DISABLED,
-									    90,120,60,23, hwnd, NULL, hInst, NULL);
+					   					WS_CHILD|WS_VISIBLE|WS_TABSTOP|CBS_DROPDOWN,
+									    90,120,60,123, hwnd, NULL, hInst, NULL);
 
 			mpegWindowInfo->hwndLockPayload = CreateWindow("BUTTON", "Payload",
 					   					WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_AUTOCHECKBOX,
@@ -809,7 +815,7 @@ int MpegFileDetailPaint(HWND hwnd)
 	while (mpegWindowInfo->fileInfo.seenPid[i])	{
 		outputRect.top=y;
 		outputRect.bottom=y+heightMidFont;
-		sprintf(buffer, "PID $%03x: %u instances (%3.2f%%)", mpegWindowInfo->fileInfo.seenPid[i], mpegWindowInfo->fileInfo.countPid[i], (float)mpegWindowInfo->fileInfo.countPid[i]*100/(float)mpegWindowInfo->fileInfo.countPackets);
+		sprintf(buffer, "PID 0x%03x: %u instances (%3.2f%%)", mpegWindowInfo->fileInfo.seenPid[i], mpegWindowInfo->fileInfo.countPid[i], (float)mpegWindowInfo->fileInfo.countPid[i]*100/(float)mpegWindowInfo->fileInfo.countPackets);
 		ExtTextOut(hdc, ZORVEWINDOWMARGIN,y,ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
 		y+=heightMidFont;
 		i++;
@@ -961,7 +967,7 @@ int MpegPacketInfoPaint(HWND hwnd)
 	outputRect.right=clientRect.right;
 	outputRect.top=y;
 	outputRect.bottom=y+heightMidFont;
-	sprintf(buffer, "PID: $%03x", mpegWindowInfo->displayedPacket.pid);
+	sprintf(buffer, "PID: 0x%03x", mpegWindowInfo->displayedPacket.pid);
 	ExtTextOut(hdc, ZORVEWINDOWMARGIN,y,ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
 	y+=heightMidFont;
 
@@ -993,10 +999,34 @@ BOOL MpegChangePacket(MPEGWINDOW_INFO *mpegWindowInfo, LPARAM lParam)
 	LONGLONG tempOffset;
 	char positionString[24];
 
+	LONGLONG maxOffset;
+	LONGLONG minOffset;
 
+	//Various vars regarding
+	int pidToLock;
+	BOOL payloadLock;
+	BOOL pidLock;
+	BOOL lockTest;
+
+
+	SendMessage(mpegWindowInfo->hwndPIDCombobox, WM_GETTEXT, 20, (LPARAM)&positionString);
+
+	if ((positionString[0] == '0') && ((positionString[1] == 'x') || (positionString[1] == 'X')))
+		pidToLock = strtol(positionString+2,NULL, 16);
+	else if (positionString[0] == '$')
+		pidToLock = strtol(positionString+1,NULL, 16);
+	else
+		pidToLock = strtol(positionString,NULL, 10);
+
+	if	(pidLock)	{
+		//check that it exists
+	}
+
+	payloadLock = SendMessage(mpegWindowInfo->hwndLockPayload, BM_GETSTATE, 0, 0) == BST_CHECKED;
+	pidLock = SendMessage(mpegWindowInfo->hwndLockPID, BM_GETSTATE, 0, 0) == BST_CHECKED;
 
 	//If we're locking to something
-	if (SendMessage(mpegWindowInfo->hwndLockPayload, BM_GETSTATE, 0, 0) == BST_CHECKED)	{
+	if (payloadLock || pidLock)	{
 		//If searching forwards or backwards
 		if ((lParam == (LPARAM)mpegWindowInfo->hwndNextButton)||(lParam == (LPARAM)mpegWindowInfo->hwndPrevButton))	{
 			WaitForSingleObject(mpegWindowInfo->fileInfo.hFileAccessMutex,INFINITE);
@@ -1007,10 +1037,19 @@ BOOL MpegChangePacket(MPEGWINDOW_INFO *mpegWindowInfo, LPARAM lParam)
 			liOffset.QuadPart = mpegWindowInfo->fileInfo.displayOffset;	//move this to something to separate parts for SFP
 			SetFilePointer(mpegWindowInfo->fileInfo.hMpegFile, liOffset.LowPart, &liOffset.HighPart, FILE_BEGIN);
 
+			if (lParam == (LPARAM)mpegWindowInfo->hwndPrevButton)	{
+				maxOffset=mpegWindowInfo->fileInfo.filesize;
+				minOffset=188*2;
+			} else {
+				maxOffset=mpegWindowInfo->fileInfo.filesize-188;
+				minOffset=0;
+			}
 			mpegWindowInfo->displayedPacket.payloadstart= FALSE;
-			while ((mpegWindowInfo->displayedPacket.payloadstart==FALSE)
-			    && (mpegWindowInfo->fileInfo.offset < mpegWindowInfo->fileInfo.filesize-188)
-			    && (mpegWindowInfo->fileInfo.offset >= 0 ))	{
+
+			//The main search loop
+			while ((lockTest)
+			    && (mpegWindowInfo->fileInfo.offset <= maxOffset)
+			    && (mpegWindowInfo->fileInfo.offset >= minOffset))	{
 				if (lParam == (LPARAM)mpegWindowInfo->hwndPrevButton)	{
 					mpegWindowInfo->fileInfo.offset-=188*2;	//move back over the block just read, to the begining of the previous
 					liOffset.QuadPart = mpegWindowInfo->fileInfo.offset;
@@ -1018,6 +1057,16 @@ BOOL MpegChangePacket(MPEGWINDOW_INFO *mpegWindowInfo, LPARAM lParam)
 
 				}
 				MpegReadPacket(&mpegWindowInfo->fileInfo, &mpegWindowInfo->displayedPacket);//read it
+
+				//What are we testing for?
+				if (payloadLock && pidLock)
+					lockTest=(mpegWindowInfo->displayedPacket.payloadstart==FALSE) || (mpegWindowInfo->displayedPacket.pid != pidToLock);
+				else if (payloadLock)
+					lockTest = (mpegWindowInfo->displayedPacket.payloadstart==FALSE);
+				else if (pidLock)
+					lockTest = (mpegWindowInfo->displayedPacket.pid != pidToLock);
+				else
+					lockTest = TRUE;
 			}
 
 
@@ -1057,6 +1106,8 @@ BOOL MpegChangePacket(MPEGWINDOW_INFO *mpegWindowInfo, LPARAM lParam)
 		//Give the opportunity for 0x to be entered as first two digits and regard as hexadecimal
 		if ((positionString[0] == '0') && ((positionString[1] == 'x') || (positionString[1] == 'X')))
 			mpegWindowInfo->fileInfo.displayOffset = strtoll(positionString+2, NULL ,16);
+		else if (positionString[0] == '$')
+			mpegWindowInfo->fileInfo.displayOffset = strtoll(positionString+1,NULL, 16);
 		else if ((positionString[0] == 'P') || (positionString[0] == 'p'))	//let P as a prefix seek to packet number
 			mpegWindowInfo->fileInfo.displayOffset = strtoll(positionString+1, NULL ,10)*188-188;
 		else	//otherwise default to decimal
