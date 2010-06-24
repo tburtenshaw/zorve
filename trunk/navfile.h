@@ -115,6 +115,7 @@ void NavInitiateColumnWidths(NAVWINDOW_INFO * navWindowInfo);
 int NavHandleVScroll(HWND hwnd, WPARAM wparam, LPARAM lparam);
 int NavScrollUpdate(HWND hwnd, NAVWINDOW_INFO * navWindowInfo);
 long NavWindowOnMouseWheel(HWND hwnd, short nDelta);
+int NavWindowHandleKeydown(HWND hwnd, WPARAM wparam, LPARAM lparam);
 
 int ReadRecordsFromNavFile(NAVWINDOW_INFO *navWindowInfo, unsigned long offset, NAV_RECORD* ptrRecord, long numRecords);
 HANDLE NavWindowLoadFile(HWND hwnd, char *openfilename);
