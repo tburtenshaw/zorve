@@ -649,6 +649,18 @@ int MpegHexView(HWND hwnd)
 		outputRect.top=y;
 		outputRect.right=x+24;
 		outputRect.bottom=y+16;
+
+
+		if ((i>=mpegWindowInfo->hexview.selStart) && (i<=mpegWindowInfo->hexview.selEnd))	{
+			SetBkColor(hdc, RGB_ZINNY_DARKBLUE);
+			SetTextColor(hdc, RGB_ZINNY_WHITE);
+		} else	{
+			SetBkColor(hdc, RGB_ZINNY_WHITE);
+			SetTextColor(hdc, RGB_ZINNY_BLACK);
+		}
+
+
+
 		ExtTextOut(hdc, x,y,ETO_OPAQUE, &outputRect, hex, strlen(hex), NULL);
 		x+=24;
 		if ((i % 16) == 15)	{
@@ -1113,6 +1125,8 @@ BOOL MpegChangePacket(MPEGWINDOW_INFO *mpegWindowInfo, LPARAM lParam)
 		else	//otherwise default to decimal
 			mpegWindowInfo->fileInfo.displayOffset = strtoll(positionString, NULL ,10);
 
+		mpegWindowInfo->hexview.selStart=mpegWindowInfo->fileInfo.displayOffset;	//correct to 188 later
+
 		//Since we want to find the packet with the offset in it, we move back 187
 		if (mpegWindowInfo->fileInfo.displayOffset>187)
 			mpegWindowInfo->fileInfo.displayOffset-=187;
@@ -1135,6 +1149,8 @@ BOOL MpegChangePacket(MPEGWINDOW_INFO *mpegWindowInfo, LPARAM lParam)
 		tempOffset=mpegWindowInfo->fileInfo.offset;	//remember the offset
 		MpegTSFindSyncByte(mpegWindowInfo->fileInfo.hMpegFile, &mpegWindowInfo->fileInfo.displayOffset);
 
+		mpegWindowInfo->hexview.selStart-=mpegWindowInfo->fileInfo.displayOffset;	//adjust to 188
+		mpegWindowInfo->hexview.selEnd=mpegWindowInfo->hexview.selStart;
 
 		MpegReadPacket(&mpegWindowInfo->fileInfo, &mpegWindowInfo->displayedPacket);
 		mpegWindowInfo->fileInfo.displayOffset+=188;

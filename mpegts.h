@@ -5,6 +5,13 @@ typedef struct sMpegWindowInfo MPEGWINDOW_INFO;
 typedef struct sMpegFileInfo MPEGFILE_INFO;
 typedef struct sTsPacket TS_PACKET;
 typedef struct sAdaptationField ADAPTATION_FIELD;
+typedef struct sHexViewInfo HEXVIEW_INFO;
+
+struct sHexViewInfo	{
+	int	selStart;
+	int	selEnd;
+	int cursorPos;
+};
 
 struct sAdaptationField	{
 	BYTE adaptationfieldlength;
@@ -97,6 +104,9 @@ struct sMpegWindowInfo	{
 	HWND	hwndLockPayload;
 	HWND	hwndLockNavPointer;
 	HWND	hwndLockIframe;
+
+	//specific parts
+	HEXVIEW_INFO hexview;
 
 	char recordingname[120];
 };

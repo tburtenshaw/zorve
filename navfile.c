@@ -107,6 +107,9 @@ LRESULT CALLBACK ChildWndNavProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam)
 				NavExport(hwnd);
 			}
 			break;
+		case WM_KEYDOWN:
+			return NavWindowHandleKeydown(hwnd, wparam, lparam);
+			break;
 
 		case WM_DESTROY:
 			NavWindowUnloadFile(hwnd);
@@ -179,10 +182,18 @@ LRESULT CALLBACK NavRecordListViewFileProc(HWND hwnd,UINT msg, WPARAM wparam,LPA
 				InvalidateRect(hwnd, NULL, FALSE);
 			}
 		break;
+		case WM_LBUTTONDOWN:
+			navWindowInfo=(NAVWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);	//get the point to window info
+			//Really need to sort this nested GetParent out, will add a var to each windowinfo with parent+mdiparent
+
+			y=GET_Y_LPARAM(lparam);
+			i=y/navWindowInfo->heightLine;
+
+			navWindowInfo->selectedRecord = navWindowInfo->firstDisplayedRecord+i;
+			InvalidateRect(hwnd, NULL, FALSE);
+			break;
 		case WM_LBUTTONDBLCLK:
 			navWindowInfo=(NAVWINDOW_INFO *)GetWindowLong(GetParent(hwnd), GWL_USERDATA);	//get the point to window info
-
-			//Really need to sort this nested GetParent out, will add a var to each windowinfo with parent+mdiparent
 			y=GET_Y_LPARAM(lparam);
 			i=y/navWindowInfo->heightLine;
 
@@ -193,7 +204,9 @@ LRESULT CALLBACK NavRecordListViewFileProc(HWND hwnd,UINT msg, WPARAM wparam,LPA
 				ZM_MPEG_SKIPTOOFFSET,
 				navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].offsetlo,
 				navWindowInfo->displayRecord[navWindowInfo->firstDisplayedRecord-navWindowInfo->indexRecordBuffer+i].offsethi);
-
+			break;
+		case WM_KEYDOWN:
+			MessageBox(hwnd,"NavRecordListViewFileProc","Keydown",0);
 			break;
 
 		default:
@@ -1131,6 +1144,61 @@ int NavExport(HWND hwnd)
 
 
 	CloseHandle(exportedFile);
+
+	return 1;
+}
+
+
+int NavWindowHandleKeydown(HWND hwnd, WPARAM wparam, LPARAM lparam)
+{
+	NAVWINDOW_INFO *navWindowInfo;
+	long oldSelectedRecord;
+
+	navWindowInfo=(NAVWINDOW_INFO *)GetWindowLong(hwnd, GWL_USERDATA);
+
+	oldSelectedRecord=navWindowInfo->selectedRecord;
+
+	switch (wparam)	{
+		case VK_DOWN:
+			navWindowInfo->selectedRecord++;	// = navWindowInfo->firstDisplayedRecord+i;
+			break;
+		case VK_UP:
+			navWindowInfo->selectedRecord--;	// = navWindowInfo->firstDisplayedRecord+i;
+			break;
+		case VK_NEXT:
+			navWindowInfo->selectedRecord+=navWindowInfo->numDisplayedLines;
+			break;
+		case VK_PRIOR:
+			navWindowInfo->selectedRecord-=navWindowInfo->numDisplayedLines;
+			break;
+		case VK_END:
+			navWindowInfo->selectedRecord=navWindowInfo->fileInfo.numRecords-1;
+			break;
+		case VK_HOME:
+			navWindowInfo->selectedRecord=0;
+			break;
+	}
+	if (navWindowInfo->selectedRecord<0)
+		navWindowInfo->selectedRecord=0;
+	if (navWindowInfo->selectedRecord>=navWindowInfo->fileInfo.numRecords)
+		navWindowInfo->selectedRecord=navWindowInfo->fileInfo.numRecords-1;
+
+	//if we scroll above the current view, reset the view
+	if (navWindowInfo->selectedRecord < navWindowInfo->firstDisplayedRecord)	{
+		navWindowInfo->firstDisplayedRecord = navWindowInfo->selectedRecord;
+		UpdateBuffer(navWindowInfo);
+	}
+
+	if (navWindowInfo->selectedRecord > navWindowInfo->firstDisplayedRecord+navWindowInfo->numDisplayedLines)	{
+		navWindowInfo->firstDisplayedRecord = navWindowInfo->selectedRecord-navWindowInfo->numDisplayedLines;
+		UpdateBuffer(navWindowInfo);
+	}
+
+
+	if (oldSelectedRecord!=navWindowInfo->selectedRecord)
+		InvalidateRect(hwnd, NULL, FALSE);
+
+
 
 	return 1;
 }
