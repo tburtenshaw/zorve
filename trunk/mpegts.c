@@ -318,85 +318,93 @@ int MpegReadPacket(MPEGFILE_INFO *mpegFileInfo, TS_PACKET *packet)
 	int offsetAtAF;
 	int offsetAtAFExt;
 
+	memset(packet, 0, sizeof(TS_PACKET));
 	ReadFile(mpegFileInfo->hMpegFile, packet->TS_raw_packet, 188, &n, NULL);
 	mpegFileInfo->offset+=188;
 
-	packet->syncbyte = packet->TS_raw_packet[0];
-	packet->transporterror =	(packet->TS_raw_packet[1] & 0x80) >> 7;
-	packet->payloadstart =		(packet->TS_raw_packet[1] & 0x40) >> 6;
-	packet->transportpriority =	(packet->TS_raw_packet[1] & 0x20) >> 5;
+	packet->sync_byte = packet->TS_raw_packet[0];
+	packet->transport_error_indicator =	(packet->TS_raw_packet[1] & 0x80) >> 7;
+	packet->payload_unit_start_indicator =		(packet->TS_raw_packet[1] & 0x40) >> 6;
+	packet->transport_priority =	(packet->TS_raw_packet[1] & 0x20) >> 5;
 	packet->pid	= ((packet->TS_raw_packet[1] & 0b11111) << 8) | packet->TS_raw_packet[2];
-	packet->scrambling	=		(packet->TS_raw_packet[3] & 0b11000000) >> 6;
-	packet->adaptation	= 		(packet->TS_raw_packet[3] & 0b00110000) >> 4;
-	packet->continuitycounter= 	(packet->TS_raw_packet[3] & 0b00001111);
+	packet->transport_scrambling_control	=		(packet->TS_raw_packet[3] & 0b11000000) >> 6;
+	packet->adaptation_field_control	= 		(packet->TS_raw_packet[3] & 0b00110000) >> 4;
+	packet->continuity_counter= 	(packet->TS_raw_packet[3] & 0b00001111);
 
-	if (packet->adaptation & 0b10)	{
-		packet->adaptationfield.adaptationfieldlength = packet->TS_raw_packet[4];
-		packet->adaptationfield.discontinuity =		(packet->TS_raw_packet[5] & 0b10000000) >> 7;
-		packet->adaptationfield.randomaccess =		(packet->TS_raw_packet[5] & 0b01000000) >> 6;
-		packet->adaptationfield.EsPriority =		(packet->TS_raw_packet[5] & 0b00100000) >> 5;
-		packet->adaptationfield.PCRFlag =			(packet->TS_raw_packet[5] & 0b00010000) >> 4;
-		packet->adaptationfield.OPCRFlag =			(packet->TS_raw_packet[5] & 0b00001000) >> 3;
-		packet->adaptationfield.splicingpointflag =	(packet->TS_raw_packet[5] & 0b00000100) >> 2;
-		packet->adaptationfield.transportprivatedataflag =		(packet->TS_raw_packet[5] & 0b00000010) >> 1;
-		packet->adaptationfield.adaptationfieldextensionflag =	(packet->TS_raw_packet[5] & 0b00000001);
+	if (packet->adaptation_field_control & 0b10)	{
+		packet->adaptation_field.adaptationfieldlength = packet->TS_raw_packet[4];
+		packet->adaptation_field.discontinuity =		(packet->TS_raw_packet[5] & 0b10000000) >> 7;
+		packet->adaptation_field.randomaccess =		(packet->TS_raw_packet[5] & 0b01000000) >> 6;
+		packet->adaptation_field.EsPriority =		(packet->TS_raw_packet[5] & 0b00100000) >> 5;
+		packet->adaptation_field.PCRFlag =			(packet->TS_raw_packet[5] & 0b00010000) >> 4;
+		packet->adaptation_field.OPCRFlag =			(packet->TS_raw_packet[5] & 0b00001000) >> 3;
+		packet->adaptation_field.splicingpointflag =	(packet->TS_raw_packet[5] & 0b00000100) >> 2;
+		packet->adaptation_field.transportprivatedataflag =		(packet->TS_raw_packet[5] & 0b00000010) >> 1;
+		packet->adaptation_field.adaptationfieldextensionflag =	(packet->TS_raw_packet[5] & 0b00000001);
 
 		b=6;
-		if (packet->adaptationfield.PCRFlag)	{	//nothing is more annoying than a 33bit value
-			packet->adaptationfield.PcrBase	= packet->TS_raw_packet[6];
-			packet->adaptationfield.PcrBase <<=1;
-			packet->adaptationfield.PcrBase |=packet->TS_raw_packet[7]>>7;
+		if (packet->adaptation_field.PCRFlag)	{	//nothing is more annoying than a 33bit value
+			packet->adaptation_field.PcrBase	=  packet->TS_raw_packet[6]*0x2000000;
+			packet->adaptation_field.PcrBase	|= packet->TS_raw_packet[7]*0x20000;
+			packet->adaptation_field.PcrBase	|= packet->TS_raw_packet[8]*0x200;
+			packet->adaptation_field.PcrBase	|= packet->TS_raw_packet[9]*0x2;
+			packet->adaptation_field.PcrBase	|= packet->TS_raw_packet[10]>>7; //keeps just the most sig bit
 
-			packet->adaptationfield.PcrExt	=	(packet->TS_raw_packet[7]&1)<<9;
-			packet->adaptationfield.PcrExt	|=	packet->TS_raw_packet[8];
-			b=9;
-		}
-		if (packet->adaptationfield.OPCRFlag)	{	//nothing is more annoying than a 33bit value
-			packet->adaptationfield.OpcrBase	= packet->TS_raw_packet[b];
-			packet->adaptationfield.OpcrBase <<=1;
-			packet->adaptationfield.OpcrBase |=packet->TS_raw_packet[b+1]>>7;
+			packet->adaptation_field.PcrExt	=(packet->TS_raw_packet[10] & 1)<<8;
+			packet->adaptation_field.PcrExt	|=	packet->TS_raw_packet[11];
 
-			packet->adaptationfield.OpcrExt	=	(packet->TS_raw_packet[b+1]&1)<<9;
-			packet->adaptationfield.OpcrExt	|=	packet->TS_raw_packet[b+2];
-			b+=3;
+			b=12;
 		}
-		if (packet->adaptationfield.splicingpointflag)	{
-			packet->adaptationfield.splicecountdown = packet->TS_raw_packet[b];
+		if (packet->adaptation_field.OPCRFlag)	{	//nothing is more annoying than a 33bit value
+			packet->adaptation_field.OpcrBase	=  packet->TS_raw_packet[b+0]*0x2000000;
+			packet->adaptation_field.OpcrBase	|= packet->TS_raw_packet[b+1]*0x20000;
+			packet->adaptation_field.OpcrBase	|= packet->TS_raw_packet[b+2]*0x200;
+			packet->adaptation_field.OpcrBase	|= packet->TS_raw_packet[b+3]*0x2;
+			packet->adaptation_field.OpcrBase	|= packet->TS_raw_packet[b+4]>>7; //keeps just the most sig bit
+
+			packet->adaptation_field.OpcrExt	=(packet->TS_raw_packet[b+4] & 1)<<8;
+			packet->adaptation_field.OpcrExt	|=	packet->TS_raw_packet[b+5];
+
+			b+=6;
+		}
+		if (packet->adaptation_field.splicingpointflag)	{
+			packet->adaptation_field.splicecountdown = packet->TS_raw_packet[b];
 			b++;
 		}
-		if (packet->adaptationfield.transportprivatedataflag)	{
-			packet->adaptationfield.transportprivatedatalength = packet->TS_raw_packet[b];
-			//this was causing crash, transportprivatedatalength was longer than it should be! (needs fix)
-			//memcpy(&packet->adaptationfield.privatedata, &packet->TS_raw_packet[b+1], packet->adaptationfield.transportprivatedatalength);
-			b+=packet->adaptationfield.transportprivatedatalength+1;
+		if (packet->adaptation_field.transportprivatedataflag)	{
+			packet->adaptation_field.transportprivatedatalength = packet->TS_raw_packet[b];
+			if (packet->adaptation_field.transportprivatedatalength>187-b)
+				packet->adaptation_field.transportprivatedatalength=0;
+			memcpy(&packet->adaptation_field.privatedata, &packet->TS_raw_packet[b+1], packet->adaptation_field.transportprivatedatalength);
+			b+=packet->adaptation_field.transportprivatedatalength+1;
 		}
-		if (packet->adaptationfield.adaptationfieldextensionflag)	{
-			packet->adaptationfield.adaptationfieldextensionlength = packet->TS_raw_packet[b];
+		if (packet->adaptation_field.adaptationfieldextensionflag)	{
+			packet->adaptation_field.adaptationfieldextensionlength = packet->TS_raw_packet[b];
 			b++;
 			offsetAtAFExt=b;
-			packet->adaptationfield.ltwflag	= (packet->TS_raw_packet[b] & 0b10000000) >> 7;
-			packet->adaptationfield.piecewiserateflag	= (packet->TS_raw_packet[b] & 0b01000000) >> 6;
-			packet->adaptationfield.seamlessspliceflag	= (packet->TS_raw_packet[b] & 0b00100000) >> 5;
+			packet->adaptation_field.ltwflag	= (packet->TS_raw_packet[b] & 0b10000000) >> 7;
+			packet->adaptation_field.piecewiserateflag	= (packet->TS_raw_packet[b] & 0b01000000) >> 6;
+			packet->adaptation_field.seamlessspliceflag	= (packet->TS_raw_packet[b] & 0b00100000) >> 5;
 			b++;
-			if (packet->adaptationfield.ltwflag)	{
-				packet->adaptationfield.ltwflag	= (packet->TS_raw_packet[b] & 0b10000000) >> 7;
-				packet->adaptationfield.ltwoffset = (LONG)(packet->TS_raw_packet[b]&0b01111111) << 8;
+			if (packet->adaptation_field.ltwflag)	{
+				packet->adaptation_field.ltwflag	= (packet->TS_raw_packet[b] & 0b10000000) >> 7;
+				packet->adaptation_field.ltwoffset = (LONG)(packet->TS_raw_packet[b]&0b01111111) << 8;
 				b++;
-				packet->adaptationfield.ltwoffset |=packet->TS_raw_packet[b];
+				packet->adaptation_field.ltwoffset |=packet->TS_raw_packet[b];
 				b++;
 			}
-			if (packet->adaptationfield.piecewiserateflag)	{
-				packet->adaptationfield.piecewiserate  = (LONG)(packet->TS_raw_packet[b] & 0b00111111) <<16;
-				packet->adaptationfield.piecewiserate |= (LONG)packet->TS_raw_packet[b+1] <<8;
-				packet->adaptationfield.piecewiserate |= packet->TS_raw_packet[b+2];
+			if (packet->adaptation_field.piecewiserateflag)	{
+				packet->adaptation_field.piecewiserate  = (LONG)(packet->TS_raw_packet[b] & 0b00111111) <<16;
+				packet->adaptation_field.piecewiserate |= (LONG)packet->TS_raw_packet[b+1] <<8;
+				packet->adaptation_field.piecewiserate |= packet->TS_raw_packet[b+2];
 				b+=3;
 
 			}
-			if (packet->adaptationfield.seamlessspliceflag)	{
-				packet->adaptationfield.splicetype=	(packet->TS_raw_packet[b] & 0b11110000) >> 4;
-				packet->adaptationfield.DTSnextAU=	(packet->TS_raw_packet[b] & 0b00001110);
-				packet->adaptationfield.DTSnextAU <<=29;
-				//packet->adaptationfield.DTSnextAU|=(ULONGLONG)(packet->TS_raw_packet[b+1] & 0b1111111111111110)<<14;
+			if (packet->adaptation_field.seamlessspliceflag)	{
+				packet->adaptation_field.splicetype=	(packet->TS_raw_packet[b] & 0b11110000) >> 4;
+				packet->adaptation_field.DTSnextAU=	(packet->TS_raw_packet[b] & 0b00001110);
+				packet->adaptation_field.DTSnextAU <<=29;
+				//packet->adaptation_field.DTSnextAU|=(ULONGLONG)(packet->TS_raw_packet[b+1] & 0b1111111111111110)<<14;
 				//NEED TO FIX
 				b+=5;
 			}
@@ -404,11 +412,11 @@ int MpegReadPacket(MPEGFILE_INFO *mpegFileInfo, TS_PACKET *packet)
 			//b=offsetAtAFExt+packet->adaptationfield.adaptationfieldextensionlength;
 		}
 		//Skip the padding. The AF length is at byte 4, this ensures we end after this.
-		b=4+packet->adaptationfield.adaptationfieldlength;
+		b=4+packet->adaptation_field.adaptationfieldlength;
 
 	}
 
-	return 0;
+	return b;
 }
 
 
@@ -529,7 +537,7 @@ LRESULT CALLBACK MpegPacketInfoProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lPar
 
 			mpegWindowInfo->hwndPositionEditbox =	CreateWindow("EDIT", "0",
 				    					WS_CHILD|WS_VISIBLE|ES_LEFT|WS_TABSTOP|WS_BORDER,
-									    30,60,80,18, hwnd, NULL, hInst, NULL);
+									    30,70,80,18, hwnd, NULL, hInst, NULL);
 			SendMessage(mpegWindowInfo->hwndPositionEditbox, EM_LIMITTEXT, 20, 0);	//shouldn't be any offset longer than 20 digits
 
 			mpegWindowInfo->hwndSeekButton =	CreateWindow("BUTTON", "Seek",
@@ -541,7 +549,7 @@ LRESULT CALLBACK MpegPacketInfoProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lPar
 									    20,120,60,23, hwnd, NULL, hInst, NULL);
 
 			mpegWindowInfo->hwndPIDCombobox = CreateWindow("COMBOBOX", "PID",
-					   					WS_CHILD|WS_VISIBLE|WS_TABSTOP|CBS_DROPDOWN,
+					   					WS_CHILD|WS_VISIBLE|WS_TABSTOP|	CBS_DROPDOWNLIST,
 									    90,120,60,123, hwnd, NULL, hInst, NULL);
 
 			mpegWindowInfo->hwndLockPayload = CreateWindow("BUTTON", "Payload",
@@ -932,7 +940,7 @@ int MpegPacketInfoPaint(HWND hwnd)
 	outputRect.right=outputRect.left+textSize.cx;
 
 	x=ZORVEWINDOWMARGIN;
-	if (mpegWindowInfo->displayedPacket.syncbyte ==0x47)
+	if (mpegWindowInfo->displayedPacket.sync_byte ==0x47)
 		SetTextColor(hdc, RGB_ZINNY_COLOUR_SYNC);
 	else
 		SetTextColor(hdc, RGB_ZINNY_COLOUR_SYNC_FADE);
@@ -943,7 +951,7 @@ int MpegPacketInfoPaint(HWND hwnd)
 	GetTextExtentPoint32(hdc, "ERROR", 5, &textSize);
 	outputRect.left=x;	outputRect.right=x+textSize.cx;
 
-	if (mpegWindowInfo->displayedPacket.transporterror)
+	if (mpegWindowInfo->displayedPacket.transport_error_indicator)
 		SetTextColor(hdc, RGB_ZINNY_COLOUR_ERROR);
 	else
 		SetTextColor(hdc, RGB_ZINNY_COLOUR_ERROR_FADE);
@@ -953,7 +961,7 @@ int MpegPacketInfoPaint(HWND hwnd)
 
 	GetTextExtentPoint32(hdc, "PAYLOAD", 7, &textSize);
 	outputRect.left=x;	outputRect.right=x+textSize.cx;
-	if (mpegWindowInfo->displayedPacket.payloadstart)
+	if (mpegWindowInfo->displayedPacket.payload_unit_start_indicator)
 		SetTextColor(hdc, RGB_ZINNY_COLOUR_PAYLOAD);
 	else
 		SetTextColor(hdc, RGB_ZINNY_COLOUR_PAYLOAD_FADE);
@@ -962,7 +970,7 @@ int MpegPacketInfoPaint(HWND hwnd)
 	x+=textSize.cx;
 
 	outputRect.left=x;	outputRect.right=clientRect.right;
-	if (mpegWindowInfo->displayedPacket.transportpriority)
+	if (mpegWindowInfo->displayedPacket.transport_priority)
 		SetTextColor(hdc, RGB_ZINNY_COLOUR_PRIORITY);
 	else
 		SetTextColor(hdc, RGB_ZINNY_COLOUR_PRIORITY_FADE);
@@ -986,9 +994,23 @@ int MpegPacketInfoPaint(HWND hwnd)
 	//Cont
 	outputRect.top=y;
 	outputRect.bottom=y+heightMidFont;
-	sprintf(buffer, "Cont: %u", mpegWindowInfo->displayedPacket.continuitycounter);
+	sprintf(buffer, "Cont: %u", mpegWindowInfo->displayedPacket.continuity_counter);
 	ExtTextOut(hdc, ZORVEWINDOWMARGIN,y,ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
 	y+=heightMidFont;
+
+
+//now, a temporary place to dump packet data
+	if (mpegWindowInfo->displayedPacket.adaptation_field_control & 0b10)	{
+		outputRect.top=y;
+		outputRect.bottom=y+heightMidFont;
+		sprintf(buffer, "AFL: %u, PCRext: %u", mpegWindowInfo->displayedPacket.adaptation_field.adaptationfieldlength,
+			mpegWindowInfo->displayedPacket.adaptation_field.PcrExt);
+		ExtTextOut(hdc, ZORVEWINDOWMARGIN,y,ETO_OPAQUE, &outputRect, buffer, strlen(buffer), NULL);
+		y+=heightMidFont;
+
+	}
+
+
 
 
 	//Fill to the bottom of this window
@@ -1056,7 +1078,7 @@ BOOL MpegChangePacket(MPEGWINDOW_INFO *mpegWindowInfo, LPARAM lParam)
 				maxOffset=mpegWindowInfo->fileInfo.filesize-188;
 				minOffset=0;
 			}
-			mpegWindowInfo->displayedPacket.payloadstart= FALSE;
+			mpegWindowInfo->displayedPacket.payload_unit_start_indicator= FALSE;
 
 			//The main search loop
 			while ((lockTest)
@@ -1072,9 +1094,9 @@ BOOL MpegChangePacket(MPEGWINDOW_INFO *mpegWindowInfo, LPARAM lParam)
 
 				//What are we testing for?
 				if (payloadLock && pidLock)
-					lockTest=(mpegWindowInfo->displayedPacket.payloadstart==FALSE) || (mpegWindowInfo->displayedPacket.pid != pidToLock);
+					lockTest=(mpegWindowInfo->displayedPacket.payload_unit_start_indicator==FALSE) || (mpegWindowInfo->displayedPacket.pid != pidToLock);
 				else if (payloadLock)
-					lockTest = (mpegWindowInfo->displayedPacket.payloadstart==FALSE);
+					lockTest = (mpegWindowInfo->displayedPacket.payload_unit_start_indicator==FALSE);
 				else if (pidLock)
 					lockTest = (mpegWindowInfo->displayedPacket.pid != pidToLock);
 				else

@@ -45,16 +45,16 @@ struct sAdaptationField	{
 struct sTsPacket	{
 	BYTE TS_raw_packet[188];
 
-	BYTE syncbyte;
-	BOOL transporterror;
-	BOOL payloadstart;
-	BOOL transportpriority;
+	BYTE sync_byte;
+	BOOL transport_error_indicator;
+	BOOL payload_unit_start_indicator;
+	BOOL transport_priority;
 	unsigned int pid;
-	BYTE scrambling;
-	BYTE adaptation;
-	BYTE continuitycounter;
+	BYTE transport_scrambling_control;
+	BYTE adaptation_field_control;
+	BYTE continuity_counter;
 
-	ADAPTATION_FIELD adaptationfield;
+	ADAPTATION_FIELD adaptation_field;
 };
 
 struct sMpegFileInfo	{
